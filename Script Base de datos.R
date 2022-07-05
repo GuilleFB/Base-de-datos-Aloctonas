@@ -1,3 +1,5 @@
+# Creación de la base de datos de Aloctonas
+
 rm(list=ls(all=TRUE)) # Borrar todo los objetos
 invisible(capture.output(gc())) # Limpiar la memoria
 
