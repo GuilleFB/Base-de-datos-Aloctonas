@@ -1,2 +1,2 @@
 # Base de datos Aloctonas
- Creacion de la base de datos de aloctonas a partir de diferentes excel y datos
+Creación de la base de datos de aloctonas de España (IEO) a partir de diferentes excels propios (campañas, artículos,...) y bases de dato externas, mediante API o scraping web.
