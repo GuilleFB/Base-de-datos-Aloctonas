@@ -1891,8 +1891,10 @@ write.csv2(Todo_EAI,
 
 # Observadores del mar #####
 
-
 r <- read_html('https://www.observadoresdelmar.es/Map/GetMapMarkers?InitProjectId=')
+
+if (exists("r")) {
+    
 data <- data.frame(jsonlite::fromJSON(html_text(r)))
 
 data$ObservacioLatitud=round(as.numeric(data$ObservacioLatitud),4)
@@ -2007,7 +2009,7 @@ for (i in 1:length(temp[,1])) {
   Observadores_EAI[temp1,columnas]=temp[i,-1]
 }
 
-#Añadir las demarcaciones a la base de datos del Observadores del mar
+# Añadir las demarcaciones a la base de datos del Observadores del mar
 NOR=which(Observadores_EAI$Latitud>41.66471&Observadores_EAI$Longitud<(-1.57104))
 if (length(NOR)!=0) {
 Observadores_EAI$Demarcacion[NOR]="NOR"
@@ -2039,11 +2041,12 @@ write.csv2(Observadores_EAI,
 
 # write_xlsx(Observadores_EAI,
 #            file = paste("BD_Observadores_",format(as.Date(Sys.Date(),format="%Y-%m-%d"),"%d%m%y"),".xlsx",sep=""))
-
+} else {print("OBSERVADORES DEL MAR FALLA")}
 
 # DIVERSIMAR ####
-r <- read_html('https://diversimar.cesga.es/visor/data/observacionesT.json')
-data <- data.frame(jsonlite::fromJSON(html_text(r)))
+diversimar <- read_html('https://diversimar.cesga.es/visor/data/observacionesT.json')
+if (exists("diversimar")) {
+data <- data.frame(jsonlite::fromJSON(html_text(diversimar)))
 
 plot(data$features.properties$long_4326,data$features.properties$lat_4326)
 
@@ -2100,7 +2103,7 @@ write.csv2(EAI_Diversimar,
           sep="\t",
           row.names = F,
           fileEncoding = "UTF-8")
-
+} else {print("DIVERSIMAR FALLA")}
 
 # Guardar base de datos completa ####
 write.csv2(BD_Primeros,
@@ -2168,7 +2171,7 @@ for (i in 1:length(temp[,1])) {
 
 BD_Estatus=Estatus
 
-#Comprueba que las especies de la base de datos de estado coincidan con la general de primeros registros
+# Comprueba que las especies de la base de datos de estado coincidan con la general de primeros registros
 if (length(Estatus$Especie)==length(which(str_detect(BD_Primeros$Archivo, "BD_primeros registros_")))){
   print("Los datos coinciden, todo OK")
   }
