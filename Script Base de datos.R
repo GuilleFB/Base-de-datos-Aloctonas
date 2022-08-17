@@ -2045,6 +2045,7 @@ write.csv2(Observadores_EAI,
 
 # DIVERSIMAR ####
 diversimar <- read_html('https://diversimar.cesga.es/visor/data/observacionesT.json')
+
 if (exists("diversimar")) {
 data <- data.frame(jsonlite::fromJSON(html_text(diversimar)))
 
