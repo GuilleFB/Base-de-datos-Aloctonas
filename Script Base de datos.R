@@ -1,5 +1,10 @@
 # Creación de la base de datos de Aloctonas
 
+library(googledrive)
+
+drive_auth()
+2
+
 rm(list=ls(all=TRUE)) # Borrar todo los objetos
 invisible(capture.output(gc())) # Limpiar la memoria
 
@@ -27,7 +32,6 @@ library(lubridate)
 library(mapview)
 library(stringr)
 library(beepr)
-#library(xlsx)
 library(tidygeocoder)
 library(rvest)
 library(magrittr)
@@ -35,12 +39,10 @@ library(jsonlite)
 library(rgbif)
 library(writexl)
 
-print("Elegir la carpeta Archivos de la base de datos de Aloctonas")
-path=choose.dir()
+
+path="D:\\2021 - ALOCTONAS\\Base de datos a modificar\\Archivos"
+#path=choose.dir()
 setwd(path) # Elegir la carpeta Archivos de la base de datos de Aloctonas
-
-Archivos_excel=dir()[which(str_detect(dir(), ".xlsx"))]
-
 
 # "BD_primeros registros_CAN.xlsx",  ####
 # "BD_primeros registros_ESAL.xlsx", ####
@@ -49,17 +51,25 @@ Archivos_excel=dir()[which(str_detect(dir(), ".xlsx"))]
 # "BD_primeros registros_SUD.xlsx"   ####
 # EAI5
 
+Archivos_primeros_registros=c("BD_primeros registros_CAN.xlsx",
+                              "BD_primeros registros_ESAL.xlsx",
+                              "BD_primeros registros_LEBA.xlsx",
+                              "BD_primeros registros_NOR.xlsx",
+                              "BD_primeros registros_SUD.xlsx")
+
 BD_Primeros=NULL
 demarcacion=c("CAN", "ESAL", "LEBA", "NOR", "SUD")
 
-
-for (i in 1:5) {
-
-  Paginas=excel_sheets(paste("BD_primeros registros_",demarcacion,".xlsx",sep="")[i])
+for (i in 1:length(Archivos_primeros_registros)) {
   
-  Excel=read_excel(paste("BD_primeros registros_",demarcacion,".xlsx",sep="")[i], sheet = Paginas[1])
+  # Descarga desde el drive el archivo que quiero
+  drive_download(Archivos_primeros_registros[i], overwrite = T)
   
-  Excel=data.frame(Excel)
+  # Me carga el archivo descargado desde Drive en R
+  assign(demarcacion[i],
+         read_excel(Archivos_primeros_registros[i]))
+  
+  Excel=data.frame(get(demarcacion[i]))
   
   Prueba=colnames(Excel)[which(is.na(Excel[1,]))]
   
@@ -100,9 +110,12 @@ BD_Primeros$Specie=trimws(BD_Primeros$Specie, "both", whitespace = "[ \\h\\v]") 
 # "BD_registros completos_todas demarcaciones.xlsx" ####
 # EAI5
 
-Paginas=excel_sheets("BD_registros completos_todas demarcaciones.xlsx")
+# Descarga desde el drive el archivo que quiero
+drive_download("BD_registros completos_todas demarcaciones.xlsx", overwrite = T)
 
-Excel=read_excel("BD_registros completos_todas demarcaciones.xlsx", sheet = Paginas[1])
+# Me carga el archivo descargado desde Drive en R
+assign("Excel",
+       read_excel("BD_registros completos_todas demarcaciones.xlsx", sheet = "tecnico"))
 
 Excel=data.frame(Excel)
 
@@ -208,7 +221,7 @@ arcgis=NA
 
 
 #plot(bing$long,bing$lat)
-plot(arcgis$long,arcgis$lat)
+#plot(arcgis$long,arcgis$lat)
 #plot(iq$long,iq$lat)
 
 #bing=data.frame(ID=Todo$ID,bing)
@@ -316,15 +329,18 @@ head(BD_Primeros)
 # "Coincidencias_INFRAROK1120_Lista_Especies_Robert_Comas.xlsx" #### 
 # EAI4
 
-Paginas=excel_sheets("Coincidencias_INFRAROK1120_Lista_Especies_Robert_Comas.xlsx")
+# Descarga desde el drive el archivo que quiero
+drive_download("Coincidencias_INFRAROK1120_Lista_Especies_Robert_Comas.xlsx", overwrite = T)
 
-temp=NULL
-#for (i in 1:3) {
-  #Excel=data.frame(read_excel(Archivos_excel[7], sheet = Paginas[i]))
-   Excel_Algas=data.frame(read_excel("Coincidencias_INFRAROK1120_Lista_Especies_Robert_Comas.xlsx", sheet = Paginas[1]))
-   Excel_Invert=data.frame(read_excel("Coincidencias_INFRAROK1120_Lista_Especies_Robert_Comas.xlsx", sheet = Paginas[2]))
-   Excel_Peces=data.frame(read_excel("Coincidencias_INFRAROK1120_Lista_Especies_Robert_Comas.xlsx", sheet = Paginas[3]))
-  
+# Me carga las paginas del Excel desde Drive en R
+assign("Paginas",
+       excel_sheets("Coincidencias_INFRAROK1120_Lista_Especies_Robert_Comas.xlsx"))
+
+# Me carga el archivo y sus diferentes hojas descargado desde Drive en R
+for (i in 1:3) {
+assign(paste("Excel_",Paginas[i],sep=""),
+       data.frame(read_excel("Coincidencias_INFRAROK1120_Lista_Especies_Robert_Comas.xlsx", sheet = Paginas[i])))
+}
   #Excel=data.frame(Excel)[,c("Genero_especie","Latitud","Longitud")]
   
   #temp=rbind(temp,Excel)
@@ -342,12 +358,12 @@ temp=NULL
 # }
 
    temp_Excel_Algas=data.frame(Excel_Algas[,c("Genero_especie","Latitud","Longitud","FECHA","Presencia.0.50","CAMPAÑA")])
-   temp_Excel_Invert=data.frame(Excel_Invert[,c("Genero_especie","Latitud","Longitud","FECHA","N","CAMPAÑA")])
+   temp_Excel_Invertebrados=data.frame(Excel_Invertebrados[,c("Genero_especie","Latitud","Longitud","FECHA","N","CAMPAÑA")])
    temp_Excel_Peces=data.frame(Excel_Peces[,c("Genero_especie","Latitud","Longitud","FECHA","N","CAMPAÑA")])
 
    colnames(temp_Excel_Algas)=c("Genero_especie","Latitud","Longitud","FECHA","N","CAMPAÑA")
 
-temp=rbind(temp_Excel_Algas,temp_Excel_Invert, temp_Excel_Peces)
+temp=rbind(temp_Excel_Algas,temp_Excel_Invertebrados, temp_Excel_Peces)
 class(temp)
 
 Archivo=rep("Coincidencias_INFRAROK1120_Lista_Especies_Robert_Comas.xlsx",length(temp$Genero_especie))
@@ -513,21 +529,23 @@ BD_Primeros=rbind(BD_Primeros,tempBD)
 head(BD_Primeros)
 
 
-# "Datos_NIS_LIC_MENORCA_0721.xlsx" ####
+# "Datos_NIS_LIC_.xlsx" ####
 # EAI1
 
-Paginas=excel_sheets("Datos_NIS_LIC_MENORCA_0721.xlsx")
+# Descarga desde el drive el archivo que quiero
+drive_download("Datos_campañas_buceo.xlsx", overwrite = T)
 
-Coordenadas=data.frame(read_excel("Datos_NIS_LIC_MENORCA_0721.xlsx", sheet = Paginas[6]))
-Sitios=data.frame(read_excel("Datos_NIS_LIC_MENORCA_0721.xlsx", sheet = Paginas[7]))
-Sitios=Sitios[19:30,1:2]
+Coordenadas=data.frame(read_excel("Datos_campañas_buceo.xlsx", sheet = "Coordenadas"))
+Sitios=data.frame(read_excel("Datos_campañas_buceo.xlsx", sheet = "Leyenda"))
+Sitios=Sitios[25:length(Sitios[,1]),1:2]
 colnames(Sitios)=Sitios[1,1:2]
 Sitios=Sitios[-1,]
 Sitios$ID_ZONA=as.numeric(Sitios$ID_ZONA)
 
+Paginas=excel_sheets("Datos_campañas_buceo.xlsx")
 temp=NULL
 for (i in 1:3) {
-  Estaciones=data.frame(read_excel("Datos_NIS_LIC_MENORCA_0721.xlsx", sheet = Paginas[i]))[,c("ZONA","Genero_especie")]
+  Estaciones=data.frame(read_excel("Datos_campañas_buceo.xlsx", sheet = Paginas[i]))[,c("ZONA","ID_DIVE","Genero_especie")]
   temp=rbind(temp, Estaciones)
 }
 
@@ -536,14 +554,27 @@ temp$Longitud=rep(NA,length(temp[,1]))
 temp$date=rep(NA,length(temp[,1]))
 temp$Coord_Originales=rep(NA,length(temp[,1]))
 
-for (i in 1:length(Sitios[,1])) {
-  temp[which(temp$ZONA==Sitios[i,1]),c(3,4,5)]=unique(Coordenadas[which(Sitios[i,2]==Coordenadas$Zona),c(7,8,3)])
-  temp[which(temp$ZONA==Sitios[i,1]),6]=paste(unique(Coordenadas[which(Sitios[i,2]==Coordenadas$Zona),c(4,5,6,8,7)]),collapse = "_")
+
+
+for (i in 1:length(Sitios[,"ZONA_NAME"])) {
+  coor=unique(Coordenadas[which(Sitios[i,"ZONA_NAME"]==Coordenadas$Zona),c("Latitud","Longitud","Fecha")])
+  if (dim(coor)[1]==2) {
+    id_dive=unique(temp[which(temp$ZONA==Sitios[i,"ID_ZONA"]),"ID_DIVE"])
+    for (j in 1:length(id_dive)) {
+      temp[which(temp$ZONA==Sitios[i,"ID_ZONA"]&temp$ID_DIVE==id_dive[j]),c("Latitud", "Longitud", "date")]=coor[j,]
+      otro=unique(Coordenadas[which(Sitios[i,2]==Coordenadas$Zona),c("Provincia_Isla", "Localidad", "Zona", "Longitud", "Latitud")])
+      temp[which(temp$ZONA==Sitios[i,"ID_ZONA"]&temp$ID_DIVE==id_dive[j]),"Coord_Originales"]=paste(otro[j,],collapse = "_")
+    }
+  }else{
+    temp[which(temp$ZONA==Sitios[i,"ID_ZONA"]),c("Latitud", "Longitud", "date")]=coor
+    temp[which(temp$ZONA==Sitios[i,"ID_ZONA"]),"Coord_Originales"]=paste(unique(Coordenadas[which(Sitios[i,2]==Coordenadas$Zona),c(4,5,6,8,7)]),collapse = "_")
+  }
+  
 }
 
 temp=temp[,-1]
 
-temp$Archivo=rep("Datos_NIS_LIC_MENORCA_0721.xlsx", length(temp[,1]))
+temp$Archivo=rep("Datos_campañas_buceo.xlsx", length(temp[,1]))
 
 
 tempBD=cbind(Specie=temp$Genero_especie,
@@ -572,28 +603,26 @@ head(BD_Primeros)
 # "Datos_NIS_RAS_0721.xlsx" ####
 # EAI2
 
-Paginas=excel_sheets("Datos_NIS_RAS_0721.xlsx")
+# Descarga desde el drive el archivo que quiero
+drive_download("Datos_RAS.xlsx", overwrite = T)
 
-Coordenadas=data.frame(read_excel("Datos_NIS_RAS_0721.xlsx", sheet = Paginas[3]))
-Sitios=data.frame(read_excel("Datos_NIS_RAS_0721.xlsx", sheet = Paginas[2]))
-Sitios=Sitios[31:65,1:2]
-colnames(Sitios)=Sitios[1,1:2]
-Sitios=Sitios[-1,]
-Sitios$`ID_ZONA/ID_RAS`=as.numeric(Sitios$`ID_ZONA/ID_RAS`)
+Coordenadas=data.frame(read_excel("Datos_RAS.xlsx", sheet = "Coordenadas"))
+Sitios=data.frame(read_excel("Datos_RAS.xlsx", sheet = "Leyenda"))
+Sitios=Sitios[,4:5]
 
-temp=data.frame(read_excel("Datos_NIS_RAS_0721.xlsx", sheet = Paginas[1]))
+temp=data.frame(read_excel("Datos_RAS.xlsx", sheet = "Datos brutos"))
 
 temp$Latitud=rep(NA,length(temp[,1]))
 temp$Longitud=rep(NA,length(temp[,1]))
 temp$Coord_Originales=rep(NA,length(temp[,1]))
 
-for (i in 1:length(Sitios[,1])) {
-  temp[which(temp$ZONA==Sitios[i,1]),c(13,14)]=unique(Coordenadas[which(Sitios[i,2]==Coordenadas$Zona),c(6,7)])
-  temp[which(temp$ZONA==Sitios[i,1]),15]=paste(unique(Coordenadas[which(Sitios[i,2]==Coordenadas$Zona),c(3,4,5,7,6)]),collapse = "_")
+for (i in 1:length(Sitios[,"ZONA_NAME"])) {
+  coor=unique(Coordenadas[which(Sitios[i,"ZONA_NAME"]==Coordenadas$Zona),c("Latitud","Longitud","Fecha")])
+  temp[which(temp$ZONA==Sitios[i,"ID_ZONA"]),c("Latitud", "Longitud", "date")]=coor
+  temp[which(temp$ZONA==Sitios[i,"ID_ZONA"]),"Coord_Originales"]=paste(unique(Coordenadas[which(Sitios[i,2]==Coordenadas$Zona),c("Provincia_Isla", "Localidad", "Zona", "Latitud", "Longitud")]),collapse = "_")
 }
 
-
-temp$Archivo=rep("Datos_NIS_RAS_0721.xlsx", length(temp[,1]))
+temp$Archivo=rep("Datos_RAS.xlsx", length(temp[,1]))
 
 tempBD=cbind(
   Specie=temp$Genero_especie,
@@ -1157,6 +1186,10 @@ for (i in 3:5) {
                       (max(temp_Coordenadas[,1])+min(temp_Coordenadas[,1]))/2) # Transforma los puntos del cuadrado en un punto medio para poder insertar en la tabla
   Coordenadas1=rbind(Coordenadas1,temp2_Coordenadas)
 }
+
+rm(capaWGS84)
+invisible(capture.output(gc()))
+
 BD_Primeros[Lineas[-c(1,2)],c(2,3)]=Coordenadas1
 
 # Buscar las posiciones que contienen un º, ' o '' tanto en Long como Lat
@@ -1399,6 +1432,12 @@ Coleccion_NA=BD_Primeros[which(is.na(BD_Primeros$Latitud)|is.na(BD_Primeros$Long
 
 # Plantilla Base de datos #####
 
+# # Descarga desde el drive el archivo que quiero
+# drive_download("Plantilla_BD.xlsx", overwrite = T)
+# 
+# # Me carga el archivo descargado desde Drive en R
+# assign("Excel",
+#        data.frame(read_excel("Plantilla_BD.xlsx")))
 
 Excel=read_excel("Plantilla_BD.xlsx")
 
@@ -1440,100 +1479,129 @@ if (length(a)>0) {
   Species_unique=Species_unique[-a]
 }
 
-Species_unique_data=data.frame(Species_unique,Species_unique)
+Especies.buscar=data.frame("Especie_no_modificada"=Species_unique,Species_unique)
 
-if (sum(which(Species_unique_data[,2]=="Cladocarpus sigma folini")<1)>0) {
+Especies.buscar$Species_unique=gsub(pattern = " sp\\.", replacement = "", x = Species_unique) #elimino el sufijo sp. ya que worms no lo detecta bien
+
+buscado.by.name=wormsbynames(Especies.buscar[,"Species_unique"], marine_only = F) # buscar la especies y las que no coincide se las salta
+
+Species_unique_data=data.frame(Especies.buscar, buscado.by.name)
+
+NA.s=which(is.na(Species_unique_data$AphiaID))
+
+if (length(NA.s)!=0) {
+  error.nombres=NULL
+  for (i in 1:length(NA.s)) {
+    x.inv <- try(solve(wormsbymatchnames(Species_unique_data[NA.s[i],"Species_unique"], marine_only = F)), silent=TRUE)
+    if (str_detect(x.inv[1],"== 200 is not TRUE")){
+      error.nombres=c(error.nombres, Species_unique_data[NA.s[i],"Species_unique"])
+      next
+    } else {
+      Species_unique_data[NA.s[i],3:dim(Species_unique_data)[2]]=wormsbymatchnames(Species_unique_data[NA.s[i],"Species_unique"], marine_only = F) # busca las que no coinciden exactamente  
+    }
+    print(paste(i/length(NA.s)*100,"%",sep = " "))
+  }
+  if (length(error.nombres)!=0) {
+    print(error.nombres)
+    stop("Existen nombres erroneos")
+  }
+  beep(8)
+}
+
+no.buscar=c("Haplosporidium pinnae", "Mona blanca", "Myxobolus portucalensis",
+            "Anemona negra", "Anemona", "Ascidia puntos rojos/naranjas",
+            "Esponja blanca", "Hermitano")
+
+nombres.modificar=error.nombres[-which(error.nombres%in%no.buscar)]
+
+if (length(nombres.modificar)>0) {
+  beep(8)
+  stop("Hay nombres que no detecta WORMS y hay que comificar")
+}
+
+########## BUSCAR LOS NOMBRES A MODIFICAR EN LOS ARCHIVOS REALES ############
+Species_unique[which(Species_unique$Species_unique=="Cladocarpus sigma folini"),"Species_unique"]="Cladocarpus sigma var. folini"
+ 
+if (length(which(Species_unique$Species_unique=="Cladocarpus sigma folini"))==0) {
   print("Nombre no coincide")
   beep(9)
   stop("Cladocarpus sigma folini")
-} else {Species_unique_data[which(Species_unique_data[,2]=="Cladocarpus sigma folini"),2]="Cladocarpus sigma var. folini"} ########### Solucion basta porque la funcion de worms no encuentra el nombre
+} else {Species_unique[which(Species_unique$Species_unique=="Cladocarpus sigma folini"),"Species_unique"]="Cladocarpus sigma var. folini"} ########### Solucion basta porque la funcion de worms no encuentra el nombre
 
-if (sum(which(Species_unique_data[,2]=="Cystoseira humilis myriophylloides")<1)>0) {
+if (length(which(Species_unique$Species_unique=="Cystoseira humilis myriophylloides"))==0) {
   print("Nombre no coincide")
   beep(9)
   stop("Cystoseira humilis myriophylloides")
-} else {Species_unique_data[which(Species_unique_data[,2]=="Cystoseira humilis myriophylloides"),2]="Cystoseira humilis var. myriophylloides"} # "cystoseira humilis myriophylloides"
+} else {Species_unique[which(Species_unique$Species_unique=="Cystoseira humilis myriophylloides"),"Species_unique"]="Cystoseira humilis var. myriophylloides"} # "cystoseira humilis myriophylloides"
 
-if (sum(which(Species_unique_data[,2]=="Ectocarpus silicuosus hiemalis")<1)>0) {
+if (length(which(Species_unique$Species_unique=="Ectocarpus silicuosus hiemalis"))==0) {
   print("Nombre no coincide")
   beep(9)
   stop("Ectocarpus silicuosus hiemalis")
-} else {Species_unique_data[which(Species_unique_data[,2]=="Ectocarpus silicuosus hiemalis"),2]="Ectocarpus siliculosus var. hiemalis"}
+} else {Species_unique[which(Species_unique$Species_unique=="Ectocarpus silicuosus hiemalis"),"Species_unique"]="Ectocarpus siliculosus var. hiemalis"}
 
-if (sum(which(Species_unique_data[,2]=="Ectocarpus silicuosus pygmaeus")<1)>0) {
+if (length(which(Species_unique$Species_unique=="Ectocarpus silicuosus pygmaeus"))==0) {
   print("Nombre no coincide")
   beep(9)
   stop("Ectocarpus silicuosus pygmaeus")
-} else {Species_unique_data[which(Species_unique_data[,2]=="Ectocarpus silicuosus pygmaeus"),2]="Ectocarpus siliculosus var. pygmaeus"}
+} else {Species_unique[which(Species_unique$Species_unique=="Ectocarpus silicuosus pygmaeus"),"Species_unique"]="Ectocarpus siliculosus var. pygmaeus"}
 
-if (sum(which(Species_unique_data[,2]=="Feldmannophycus okamurae")<1)>0) {
+if (length(which(Species_unique$Species_unique=="Feldmannophycus okamurae"))==0) {
   print("Nombre no coincide")
   beep(9)
   stop("Feldmannophycus okamurae")
-} else {Species_unique_data[which(Species_unique_data[,2]=="Feldmannophycus okamurae"),2]="Caulacanthus okamurae"} #"Feldmannophycus okamurae" https://notulaealgarum.org/2020/documents/Notulae%20Algarum%20No.%20162.pdf
+} else {Species_unique[which(Species_unique$Species_unique=="Feldmannophycus okamurae"),"Species_unique"]="Caulacanthus okamurae"} #"Feldmannophycus okamurae" https://notulaealgarum.org/2020/documents/Notulae%20Algarum%20No.%20162.pdf
 
-if (sum(which(Species_unique_data[,2]=="Hydroides dianthus complex")<1)>0) {
+if (length(which(Species_unique$Species_unique=="Hydroides dianthus complex"))==0) {
   print("Nombre no coincide")
   beep(9)
   stop("Hydroides dianthus complex")
-} else {Species_unique_data[which(Species_unique_data[,2]=="Hydroides dianthus complex"),2]="Hydroides dianthus"} #"Hydroides dianthus complex"
+} else {Species_unique[which(Species_unique$Species_unique=="Hydroides dianthus complex"),"Species_unique"]="Hydroides dianthus"} #"Hydroides dianthus complex"
 
-if (sum(which(Species_unique_data[,2]=="Nicidion cariboea ex Eunice cariboea")<1)>0) {
+if (length(which(Species_unique$Species_unique=="Nicidion cariboea ex Eunice cariboea"))==0) {
   print("Nombre no coincide")
   beep(9)
   stop("Nicidion cariboea ex Eunice cariboea")
-} else {Species_unique_data[which(Species_unique_data[,2]=="Nicidion cariboea ex Eunice cariboea"),2]="Nicidion cariboea"} #"Nicidion cariboea ex (no aceptado) Eunice cariboea"
+} else {Species_unique[which(Species_unique$Species_unique=="Nicidion cariboea ex Eunice cariboea"),"Species_unique"]="Nicidion cariboea"} #"Nicidion cariboea ex (no aceptado) Eunice cariboea"
 
-if (sum(which(Species_unique_data[,2]=="Pennaria disticha australis")<1)>0) {
+if (length(which(Species_unique$Species_unique=="Pennaria disticha australis"))==0) {
   print("Nombre no coincide")
   beep(9)
   stop("Pennaria disticha australis")
-} else {Species_unique_data[which(Species_unique_data[,2]=="Pennaria disticha australis"),2]="Pennaria disticha"} #"Pennaria disticha australis"
+} else {Species_unique[which(Species_unique$Species_unique=="Pennaria disticha australis"),"Species_unique"]="Pennaria disticha"} #"Pennaria disticha australis"
 
-if (sum(which(Species_unique_data[,2]=="Scorpora notata")<1)>0) {
+if (length(which(Species_unique$Species_unique=="Scorpora notata"))==0) {
   print("Nombre no coincide")
   beep(9)
   stop("Scorpora notata")
-} else {Species_unique_data[which(Species_unique_data[,2]=="Scorpora notata"),2]="Scorpaena notata"} #"Scorpora notata"
+} else {Species_unique[which(Species_unique$Species_unique=="Scorpora notata"),"Species_unique"]="Scorpaena notata"} #"Scorpora notata"
 
-if (sum(which(Species_unique_data[,2]=="Syllis \037ivipara")<1)>0) {
-  print("Nombre no coincide")
-  beep(9)
-  stop("Syllis \037ivipara")
-} else {Species_unique_data[which(Species_unique_data[,2]=="Syllis \037ivipara"),2]="Syllis vivipara"} #""Syllis \037ivipara""
-
-if (sum(which(Species_unique_data[,2]=="Wurdermannia magna")<1)>0) {
+if (length(which(Species_unique$Species_unique=="Wurdermannia magna"))==0) {
   print("Nombre no coincide")
   beep(9)
   stop("Wurdermannia magna")
-} else {Species_unique_data[which(Species_unique_data[,2]=="Wurdermannia magna"),2]="Wurdemannia"} #"Wurdermannia magna"
+} else {Species_unique[which(Species_unique$Species_unique=="Wurdermannia magna"),"Species_unique"]="Wurdemannia"} #"Wurdermannia magna"
 
-temp=which(Species_unique_data[,2]=="Haplosporidium pinnae"
-           |Species_unique_data[,2]=="Mona blanca"
-           |Species_unique_data[,2]=="Myxobolus portucalensis")
+if (length(which(Species_unique$Species_unique=="Cerithium vulgare"))==0) {
+  print("Nombre no coincide")
+  beep(9)
+  stop("Cerithium vulgare")
+} else {Species_unique[which(Species_unique$Species_unique=="Cerithium vulgare"),"Species_unique"]="Cerithium vulgatum"} #"Cerithium vulgare"
 
-Species_unique_data=Species_unique_data[-temp,]
 
-temp=wormsbymatchnames(Species_unique_data[,2], marine_only = F)
-beep(8)
 
-# Bucle por lotes
-# c=length(Species_unique_data$Species_unique)/32
-# a=1:32
-# Especies=NULL
-# for (i in 1:c) {
-#   if (any(is.na(Species_unique_data[a,2]))) {
-#     stop("Existe algun NA")
-#   }
-#   temp=wormsbymatchnames(Species_unique_data[a,2] 
-#                          ,marine_only = F)
-#   Especies=rbind(Especies,temp)
-#   print(round(i/length(Species_unique_data[,2])*100,2))
-#   a=a+32
-# }
-# a=NULL
+###############
+# Este proceso lo hago para ir seleccionando y eliminando nombres de especies mas facilmente y rapido
+temp=wormsbynames(Species_unique[,"Species_unique"], marine_only = F) # busca las especies que coinciden exactamente y las que no les pone un NA
 
-# ########### WORRMS #####################################
+Species_unique_data=data.frame(Species_unique,temp)
+
+##################
+
+
+
+
+# ########### WORRMS (otro paquete diferente) #####################################
 # Especies=Species_unique_data[,2]
 # b=NULL
 # for (i in 1:length(Especies)) {
@@ -1542,8 +1610,6 @@ beep(8)
 #   print(round(i/length(Especies)*100,2)) 
 # }
 
-
-Species_unique_data=data.frame(Species_unique_data,temp)
 head(Species_unique_data)
 
 matriz=matrix(NA, ncol = length(colnames(Species_unique_data)), nrow = length(BD_Primeros$Specie))
@@ -1554,19 +1620,24 @@ BD_Primeros=data.frame(BD_Primeros,matriz)
 head(BD_Primeros)
 
 for (i in 1:length(Species_unique_data[,1])) {
-  temp=which(BD_Primeros$Specie==Species_unique_data[i,1])
+  temp=which(BD_Primeros$Specie==Species_unique_data[i,"Especie_no_modificada"])
   BD_Primeros[temp,12:40]=Species_unique_data[i,]
 }
 
-BD_Primeros=BD_Primeros[,-c(12,13)]
+temp=which(is.na(BD_Primeros$modified))
 
-names(BD_Primeros)
+if (!all(BD_Primeros$Specie[temp]%in%no.buscar)) {
+  print(BD_Primeros$Specie[temp][which(BD_Primeros$Specie[temp]%in%no.buscar==FALSE)])
+  stop("HAY UNA ESPECIE NO ASIGANDA BIEN")
+}
 
-which(is.na(BD_Primeros$Specie))
+BD_Primeros=BD_Primeros[,-which(colnames(BD_Primeros)%in%c("Especie_no_modificada","Species_unique"))]
+
 a=which(is.na(BD_Primeros$scientificname))
-which(is.na(BD_Primeros$valid_name))
+if (length(a)!=0) {
+  BD_Primeros$scientificname[a]=BD_Primeros$Specie[a]  
+}
 
-BD_Primeros$scientificname[a]=BD_Primeros$Specie[which(is.na(BD_Primeros$scientificname))]
 
 # "Specie_raw"               "Latitud"                  "Longitud"                 "Date"       
 # "First_Reference"          "Other_relevant_reference" "Archivo"                  "Demarcacion"             
@@ -1598,11 +1669,6 @@ for (i in 1:length(temp1)) {
 # Limpiar Fechas quitandole el .0
 BD_Primeros$Year_First_record=gsub("\\.0", "",as.character(BD_Primeros$Year_First_record))
 
-# # Arreglar algunos nombre ####
-# temp=which(BD_Primeros$scientificname=="Pinctada radiata")
-# if (length(temp)!=0) {
-#   BD_Primeros$scientificname[temp]="Pinctada imbricata radiata"
-# }
 
 # Eliminar la Dorada (Sparus aurata) de las demarcaciones en las que no es Invasora
 BD_Primeros=BD_Primeros[-which(BD_Primeros$scientificname=="Sparus aurata"&BD_Primeros$Demarcacion!="CAN"),]
@@ -1749,10 +1815,15 @@ temp2=sort(unique(temp))
 Todo$acceptedScientificName[temp2]=Todo$scientificname_BD[temp2]
 
 # Elimino especies que por demarcacion no deberian de estar
-Todo=Todo[-which(Todo$decimalLatitude>30&str_detect(Todo$scientificName,"Sparus aurata")),] # Elimino la dorada de la peninsula por no ser considerada aqui invasora
-Todo=Todo[-which(Todo$decimalLatitude>30&str_detect(Todo$scientificName,"Dicentrarchus labrax")),] # Elimino la lubina de la peninsula por no ser considerada aqui invasora
-Todo=Todo[-which(Todo$decimalLatitude>30&str_detect(Todo$scientificName,"Argyrosomus regius")),] # Elimino la corvina de la peninsula por no ser considerada aqui invasora
-
+if (length(which(Todo$decimalLatitude>30&str_detect(Todo$scientificName,"Sparus aurata")))!=0) {
+  Todo=Todo[-which(Todo$decimalLatitude>30&str_detect(Todo$scientificName,"Sparus aurata")),] # Elimino la dorada de la peninsula por no ser considerada aqui invasora
+}
+if (length(which(Todo$decimalLatitude>30&str_detect(Todo$scientificName,"Dicentrarchus labrax")))!=0) {
+  Todo=Todo[-which(Todo$decimalLatitude>30&str_detect(Todo$scientificName,"Dicentrarchus labrax")),] # Elimino la dorada de la peninsula por no ser considerada aqui invasora
+}
+if (length(which(Todo$decimalLatitude>30&str_detect(Todo$scientificName,"Argyrosomus regius")))!=0) {
+  Todo=Todo[-which(Todo$decimalLatitude>30&str_detect(Todo$scientificName,"Argyrosomus regius")),] # Elimino la dorada de la peninsula por no ser considerada aqui invasora
+}
 
 # Buscar que especies y coordenadas coinciden con la BD_EAI ####
 # temp3=NULL
@@ -1889,7 +1960,7 @@ write.csv2(Todo_EAI,
 #            file = paste("BD_GBIF_",format(as.Date(Sys.Date(),format="%Y-%m-%d"),"%d%m%y"),".xlsx",sep=""))
 
 
-# Observadores del mar #####
+# OBSERVADORES DEL MAR #####
 
 r <- read_html('https://www.observadoresdelmar.es/Map/GetMapMarkers?InitProjectId=')
 
@@ -1947,7 +2018,8 @@ for (i in 1:length(data$IdObervacio)) {
   }
 }
 
-temp=which(data$Nombre=="")
+unique(data$Nombre)
+temp=which(data$Nombre==""|data$Nombre=="NOT VALID")
 if (length(temp)!=0) {
   data=data[-temp,]
 }
@@ -1973,7 +2045,9 @@ Observadores_EAI$family=NA
 Observadores_EAI$genus=NA
 Observadores_EAI$EAI="EAI5"
 
-Observadores_EAI=Observadores_EAI[-which(Observadores_EAI$Specie=="NOT VALID"),]
+Observadores_EAI$Specie=stri_replace_all_charclass(Observadores_EAI$Specie, "\\p{WHITE_SPACE}", " ")
+Observadores_EAI$Specie=trimws(Observadores_EAI$Specie, "both", whitespace = "[ \\h\\v]")
+
 Observadores_EAI$Specie[which(Observadores_EAI$Specie=="Pinctada imbricaa radiata")]="Pinctada imbricata radiata"
 Observadores_EAI$Specie[which(Observadores_EAI$Specie=="Rugulopteryx Okamurae")]="Rugulopteryx okamurae"
 Observadores_EAI=Observadores_EAI[-which(Observadores_EAI$Specie=="alga filamentosa"),]
@@ -1993,10 +2067,18 @@ Observadores_EAI$Specie[which(Observadores_EAI$Specie=="C. crambe")]="Crambe cra
 Observadores_EAI$Specie[which(Observadores_EAI$Specie=="C. crambe")]="Crambe crambe"
 Observadores_EAI=Observadores_EAI[-which(Observadores_EAI$Specie=="Cianobacterias"),]
 
-Observadores_EAI$Specie=stri_replace_all_charclass(Observadores_EAI$Specie, "\\p{WHITE_SPACE}", " ")
-Observadores_EAI$Specie=trimws(Observadores_EAI$Specie, "both", whitespace = "[ \\h\\v]")
+
 nombres=unique(Observadores_EAI$Specie)
 
+# # Para saber en cual falla
+# nombres2=NULL
+# for (i in 1:length(nombres)) {
+#   temp=wormsbymatchnames(stri_trans_general(nombres[i],"Latin-ASCII") #elimina el espacio \\s+ por el normal y transforma en ASCII (elimina acentos o letras raras)
+#                          ,marine_only = F)
+#   nombres2=rbind(nombres2,temp)
+# }
+
+# Directo si todo va bien
 temp=wormsbymatchnames(stri_trans_general(nombres,"Latin-ASCII") #elimina el espacio \\s+ por el normal y transforma en ASCII (elimina acentos o letras raras)
                        ,marine_only = F)
 
@@ -2041,7 +2123,9 @@ write.csv2(Observadores_EAI,
 
 # write_xlsx(Observadores_EAI,
 #            file = paste("BD_Observadores_",format(as.Date(Sys.Date(),format="%Y-%m-%d"),"%d%m%y"),".xlsx",sep=""))
-} else {print("OBSERVADORES DEL MAR FALLA")}
+} else {
+  print("OBSERVADORES DEL MAR FALLA")
+  }
 
 # DIVERSIMAR ####
 diversimar <- read_html('https://diversimar.cesga.es/visor/data/observacionesT.json')
@@ -2104,7 +2188,9 @@ write.csv2(EAI_Diversimar,
           sep="\t",
           row.names = F,
           fileEncoding = "UTF-8")
-} else {print("DIVERSIMAR FALLA")}
+} else {
+  print("DIVERSIMAR FALLA")
+  }
 
 # Guardar base de datos completa ####
 write.csv2(BD_Primeros,
@@ -2119,21 +2205,25 @@ write.csv2(BD_Primeros,
 # Estatus especies ####
 Estatus=NULL
 
-demarcacion=c("CAN", "ESAL", "LEBA", "NOR", "SUD")
-
 Nombres_columnas=c("Especie", "EASIN_check", "EASIN_Remarks", "Status_IEO_2018",
-                   "Status_JRC_IUCN_2018", "Tsiamis_2019", "Status_IEO_2021", "Establishment_success","Demarcacion")
+                   "Status_JRC_IUCN_2018", "Tsiamis_2019", "Status_IEO_2021", "Status_IEO_2022","Establishment_success","Demarcacion")
 
-Archivos_excel=dir()[which(str_detect(dir(), ".xlsx"))]
+
 for (i in 1:5) {
   
-  Paginas=excel_sheets(Archivos_excel[i])
+  # Descarga desde el drive el archivo que quiero
+  assign(demarcacion[i],
+         drive_download(Archivos_primeros_registros[i], overwrite = T))
   
-  Excel=read_excel(Archivos_excel[i], sheet = Paginas[1])
+  # Me carga el archivo descargado desde Drive en R
+  assign(demarcacion[i],
+         read_excel(Archivos_primeros_registros[i]))
   
-  Excel=data.frame(Excel)
+  Excel=data.frame(get(demarcacion[i]))
   
-  temp=Excel[-c(1,2),c(7,52:58)]
+  temp=Excel[-c(1,2),c("Scientific.name","EASIN.check", "EASIN.Remarks", "Status._IEO_2018",
+                       "Status.JRC_.IUCN.2018", "Tsiamis_2019", "Status_IEO_2021", 
+                       "Status_IEO_2022", "Establishment_success")]
   
   temp$Demarcacion=rep(demarcacion[i], length(temp$Scientific.name))
   
@@ -2153,9 +2243,12 @@ nombres=sort(unique(stri_trans_general(Estatus$Especie,"Latin-ASCII")))
 
 temp=which(nombres=="Haplosporidium pinnae"
            |nombres=="Mona blanca"
-           |nombres=="Myxobolus portucalensis")
+           |nombres=="Myxobolus portucalensis"
+           |nombres=="Anemona")
 
-nombres=nombres[-temp]
+if (length(temp)!=0) {
+  nombres=nombres[-temp]
+}
 
 temp=wormsbymatchnames(stri_trans_general(nombres,"Latin-ASCII") #elimina el espacio \\s+ por el normal y transforma en ASCII (elimina acentos o letras raras)
                        ,marine_only = F)
@@ -2326,12 +2419,12 @@ length(sort(unique(BD_EAI$scientificname))) # Especies unicas EAI en total 583
 length(sort(unique(BD_Estatus$Especie))) # 583
 
 
-# Función para buscar una especie ####
-Buscar_Especie = function(x){
-  temp=which(str_detect(BD_Primeros$scientificname,as.character(x))|str_detect(BD_Primeros$Specie,as.character(x)))
-  temp2=BD_Primeros[temp,c("scientificname","Longitud","Latitud","Demarcacion")]
-  print(temp2)
-  mapview(temp2[which(!is.na(temp2$Latitud)&!is.na(temp2$Longitud)),], xcol = "Longitud", ycol = "Latitud", crs = 4326, map.types = "CartoDB.Positron", grid = F)
-}
-
-Buscar_Especie("Magallana gigas") # Funcion para buscar una especie por nombre en la BD_general
+# # Función para buscar una especie ####
+# Buscar_Especie = function(x){
+#   temp=which(str_detect(BD_Primeros$scientificname,as.character(x))|str_detect(BD_Primeros$Specie,as.character(x)))
+#   temp2=BD_Primeros[temp,c("scientificname","Longitud","Latitud","Demarcacion")]
+#   print(temp2)
+#   mapview(temp2[which(!is.na(temp2$Latitud)&!is.na(temp2$Longitud)),], xcol = "Longitud", ycol = "Latitud", crs = 4326, map.types = "CartoDB.Positron", grid = F)
+# }
+# 
+# Buscar_Especie("Magallana gigas") # Funcion para buscar una especie por nombre en la BD_general
