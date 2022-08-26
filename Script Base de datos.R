@@ -3,7 +3,7 @@
 library(googledrive)
 
 drive_auth()
-2
+1
 
 rm(list=ls(all=TRUE)) # Borrar todo los objetos
 invisible(capture.output(gc())) # Limpiar la memoria
@@ -106,6 +106,8 @@ BD_primeros_registros=BD_Primeros
 
 BD_Primeros$Specie=trimws(BD_Primeros$Specie, "both", whitespace = "[ \\h\\v]") #elimina los espacios finales de todas las especies
 
+rm(Excel2)
+invisible(capture.output(gc()))
 
 # "BD_registros completos_todas demarcaciones.xlsx" ####
 # EAI5
@@ -266,6 +268,9 @@ Demarcacion=unite(temp, Demarcacion ,c(1:5),  sep = "-", remove = TRUE)
 Abundancia2=unite(Excel2, Abundancia ,c(94,95,105),  sep = "/", remove = TRUE)
 Abundancia=Abundancia2$Abundancia
 Coord_Originales=paste(Excel2$Localidades.muestreadas,Excel2$Zona,Excel2$Long.X,Excel2$Lat.Y,Excel2$Long.X.1,Excel2$Lat.Y.1,sep="_")
+
+rm(Excel2)
+invisible(capture.output(gc()))
 
 tempBD=cbind(Specie,
              Latitud,
@@ -845,6 +850,8 @@ for (i in 1:length(temp$UTM.10...10.km)) {
 }
 Coordenadas10=data.frame(Coordenadas10)
 
+rm(capaWGS84_10)
+invisible(capture.output(gc()))
 #mapview(Coordenadas10[which(!is.na(Coordenadas10$X1)),], xcol = "X1", ycol = "X2", crs = 4326, grid = F)
 
 
@@ -1432,16 +1439,12 @@ Coleccion_NA=BD_Primeros[which(is.na(BD_Primeros$Latitud)|is.na(BD_Primeros$Long
 
 # Plantilla Base de datos #####
 
-# # Descarga desde el drive el archivo que quiero
-# drive_download("Plantilla_BD.xlsx", overwrite = T)
-# 
-# # Me carga el archivo descargado desde Drive en R
-# assign("Excel",
-#        data.frame(read_excel("Plantilla_BD.xlsx")))
+# Descarga desde el drive el archivo que quiero
+drive_download("Plantilla_BD.xlsx", overwrite = T)
 
-Excel=read_excel("Plantilla_BD.xlsx")
-
-Excel=data.frame(Excel)
+# Me carga el archivo descargado desde Drive en R
+assign("Excel",
+       data.frame(read_excel("Plantilla_BD.xlsx")))
 
 plantilla=cbind(
   Specie=Excel$Specie,
@@ -1465,9 +1468,8 @@ plantilla$Specie=trimws(plantilla$Specie, "both", whitespace = "[ \\h\\v]")
 BD_Primeros=rbind(BD_Primeros,plantilla)
 
 
+
 # WORMS - Codificar los nombres bien de cada especie ####
-
-
 BD_Primeros$Specie=stri_trans_general(stri_replace_all_charclass(BD_Primeros$Specie, "\\p{WHITE_SPACE}", " "),"Latin-ASCII") # elimina el espacio \\p{WHITE_SPACE} por el normal
 BD_Primeros$Specie=trimws(BD_Primeros$Specie, "both", whitespace = "[ \\h\\v]")
 
@@ -1495,110 +1497,104 @@ if (length(NA.s)!=0) {
     x.inv <- try(solve(wormsbymatchnames(Species_unique_data[NA.s[i],"Species_unique"], marine_only = F)), silent=TRUE)
     if (str_detect(x.inv[1],"== 200 is not TRUE")){
       error.nombres=c(error.nombres, Species_unique_data[NA.s[i],"Species_unique"])
+      print(paste(i/length(NA.s)*100,"%",sep = " "))
       next
     } else {
       Species_unique_data[NA.s[i],3:dim(Species_unique_data)[2]]=wormsbymatchnames(Species_unique_data[NA.s[i],"Species_unique"], marine_only = F) # busca las que no coinciden exactamente  
     }
-    print(paste(i/length(NA.s)*100,"%",sep = " "))
+      print(paste(i/length(NA.s)*100,"%",sep = " "))
   }
-  if (length(error.nombres)!=0) {
-    print(error.nombres)
-    stop("Existen nombres erroneos")
+  no.buscar=c("Haplosporidium pinnae", "Mona blanca", "Myxobolus portucalensis",
+              "Anemona negra", "Anemona", "Ascidia puntos rojos/naranjas",
+              "Esponja blanca", "Hermitano")
+  
+  nombres.modificar=error.nombres[-which(error.nombres%in%no.buscar)]
+  
+  if (length(nombres.modificar%in%"Wurdermannia magna")!=0) {
+    Species_unique_data[which(Species_unique_data$Species_unique=="Wurdermannia magna"),"Species_unique"]="Wurdemannia" #"Wurdermannia magna"
+    Species_unique_data[which(Species_unique_data$Species_unique=="Wurdemannia"),3:dim(Species_unique_data)[2]]=wormsbymatchnames(Species_unique_data[which(Species_unique_data$Species_unique=="Wurdemannia"),"Species_unique"], marine_only = F)
+    NA.s=which(is.na(Species_unique_data$AphiaID))
+    error.nombres=NULL
+    error.nombres=c(error.nombres, Species_unique_data[NA.s,"Species_unique"])
+    nombres.modificar=error.nombres[-which(error.nombres%in%no.buscar)]
+  } else {
+    beep(9)
+    stop("Nombres no coinciden")
   }
-  beep(8)
+  if (length(nombres.modificar)>0) {
+    beep(8)
+    stop("Hay nombres que no detecta WORMS y hay que comificar")
+  }
+print("TODO VA BIEN")
+invisible(readline(prompt="Press [enter] to continue")) # Presionar cualquier tecla para continuar
 }
 
-no.buscar=c("Haplosporidium pinnae", "Mona blanca", "Myxobolus portucalensis",
-            "Anemona negra", "Anemona", "Ascidia puntos rojos/naranjas",
-            "Esponja blanca", "Hermitano")
 
-nombres.modificar=error.nombres[-which(error.nombres%in%no.buscar)]
+# Antiguo ############
+# Cambiar los nombres por lo que si detecta el WORMS
+# Species_unique[which(Species_unique$Species_unique=="Cladocarpus sigma folini"),"Species_unique"]="Cladocarpus sigma var. folini"
+#  
+# if (length(which(Species_unique$Species_unique=="Cladocarpus sigma folini"))==0) {
+#   print("Nombre no coincide")
+#   beep(9)
+#   stop("Cladocarpus sigma folini")
+# } else {Species_unique[which(Species_unique$Species_unique=="Cladocarpus sigma folini"),"Species_unique"]="Cladocarpus sigma var. folini"} ########### Solucion basta porque la funcion de worms no encuentra el nombre
+# 
+# if (length(which(Species_unique$Species_unique=="Cystoseira humilis myriophylloides"))==0) {
+#   print("Nombre no coincide")
+#   beep(9)
+#   stop("Cystoseira humilis myriophylloides")
+# } else {Species_unique[which(Species_unique$Species_unique=="Cystoseira humilis myriophylloides"),"Species_unique"]="Cystoseira humilis var. myriophylloides"} # "cystoseira humilis myriophylloides"
+# 
+# if (length(which(Species_unique$Species_unique=="Ectocarpus silicuosus hiemalis"))==0) {
+#   print("Nombre no coincide")
+#   beep(9)
+#   stop("Ectocarpus silicuosus hiemalis")
+# } else {Species_unique[which(Species_unique$Species_unique=="Ectocarpus silicuosus hiemalis"),"Species_unique"]="Ectocarpus siliculosus var. hiemalis"}
+# 
+# if (length(which(Species_unique$Species_unique=="Ectocarpus silicuosus pygmaeus"))==0) {
+#   print("Nombre no coincide")
+#   beep(9)
+#   stop("Ectocarpus silicuosus pygmaeus")
+# } else {Species_unique[which(Species_unique$Species_unique=="Ectocarpus silicuosus pygmaeus"),"Species_unique"]="Ectocarpus siliculosus var. pygmaeus"}
+# 
+# if (length(which(Species_unique$Species_unique=="Feldmannophycus okamurae"))==0) {
+#   print("Nombre no coincide")
+#   beep(9)
+#   stop("Feldmannophycus okamurae")
+# } else {Species_unique[which(Species_unique$Species_unique=="Feldmannophycus okamurae"),"Species_unique"]="Caulacanthus okamurae"} #"Feldmannophycus okamurae" https://notulaealgarum.org/2020/documents/Notulae%20Algarum%20No.%20162.pdf
+# 
+# if (length(which(Species_unique$Species_unique=="Hydroides dianthus complex"))==0) {
+#   print("Nombre no coincide")
+#   beep(9)
+#   stop("Hydroides dianthus complex")
+# } else {Species_unique[which(Species_unique$Species_unique=="Hydroides dianthus complex"),"Species_unique"]="Hydroides dianthus"} #"Hydroides dianthus complex"
+# 
+# if (length(which(Species_unique$Species_unique=="Nicidion cariboea ex Eunice cariboea"))==0) {
+#   print("Nombre no coincide")
+#   beep(9)
+#   stop("Nicidion cariboea ex Eunice cariboea")
+# } else {Species_unique[which(Species_unique$Species_unique=="Nicidion cariboea ex Eunice cariboea"),"Species_unique"]="Nicidion cariboea"} #"Nicidion cariboea ex (no aceptado) Eunice cariboea"
+# 
+# if (length(which(Species_unique$Species_unique=="Pennaria disticha australis"))==0) {
+#   print("Nombre no coincide")
+#   beep(9)
+#   stop("Pennaria disticha australis")
+# } else {Species_unique[which(Species_unique$Species_unique=="Pennaria disticha australis"),"Species_unique"]="Pennaria disticha"} #"Pennaria disticha australis"
+# 
+# if (length(which(Species_unique$Species_unique=="Scorpora notata"))==0) {
+#   print("Nombre no coincide")
+#   beep(9)
+#   stop("Scorpora notata")
+# } else {Species_unique[which(Species_unique$Species_unique=="Scorpora notata"),"Species_unique"]="Scorpaena notata"} #"Scorpora notata"
+# 
 
-if (length(nombres.modificar)>0) {
-  beep(8)
-  stop("Hay nombres que no detecta WORMS y hay que comificar")
-}
-
-########## BUSCAR LOS NOMBRES A MODIFICAR EN LOS ARCHIVOS REALES ############
-Species_unique[which(Species_unique$Species_unique=="Cladocarpus sigma folini"),"Species_unique"]="Cladocarpus sigma var. folini"
- 
-if (length(which(Species_unique$Species_unique=="Cladocarpus sigma folini"))==0) {
-  print("Nombre no coincide")
-  beep(9)
-  stop("Cladocarpus sigma folini")
-} else {Species_unique[which(Species_unique$Species_unique=="Cladocarpus sigma folini"),"Species_unique"]="Cladocarpus sigma var. folini"} ########### Solucion basta porque la funcion de worms no encuentra el nombre
-
-if (length(which(Species_unique$Species_unique=="Cystoseira humilis myriophylloides"))==0) {
-  print("Nombre no coincide")
-  beep(9)
-  stop("Cystoseira humilis myriophylloides")
-} else {Species_unique[which(Species_unique$Species_unique=="Cystoseira humilis myriophylloides"),"Species_unique"]="Cystoseira humilis var. myriophylloides"} # "cystoseira humilis myriophylloides"
-
-if (length(which(Species_unique$Species_unique=="Ectocarpus silicuosus hiemalis"))==0) {
-  print("Nombre no coincide")
-  beep(9)
-  stop("Ectocarpus silicuosus hiemalis")
-} else {Species_unique[which(Species_unique$Species_unique=="Ectocarpus silicuosus hiemalis"),"Species_unique"]="Ectocarpus siliculosus var. hiemalis"}
-
-if (length(which(Species_unique$Species_unique=="Ectocarpus silicuosus pygmaeus"))==0) {
-  print("Nombre no coincide")
-  beep(9)
-  stop("Ectocarpus silicuosus pygmaeus")
-} else {Species_unique[which(Species_unique$Species_unique=="Ectocarpus silicuosus pygmaeus"),"Species_unique"]="Ectocarpus siliculosus var. pygmaeus"}
-
-if (length(which(Species_unique$Species_unique=="Feldmannophycus okamurae"))==0) {
-  print("Nombre no coincide")
-  beep(9)
-  stop("Feldmannophycus okamurae")
-} else {Species_unique[which(Species_unique$Species_unique=="Feldmannophycus okamurae"),"Species_unique"]="Caulacanthus okamurae"} #"Feldmannophycus okamurae" https://notulaealgarum.org/2020/documents/Notulae%20Algarum%20No.%20162.pdf
-
-if (length(which(Species_unique$Species_unique=="Hydroides dianthus complex"))==0) {
-  print("Nombre no coincide")
-  beep(9)
-  stop("Hydroides dianthus complex")
-} else {Species_unique[which(Species_unique$Species_unique=="Hydroides dianthus complex"),"Species_unique"]="Hydroides dianthus"} #"Hydroides dianthus complex"
-
-if (length(which(Species_unique$Species_unique=="Nicidion cariboea ex Eunice cariboea"))==0) {
-  print("Nombre no coincide")
-  beep(9)
-  stop("Nicidion cariboea ex Eunice cariboea")
-} else {Species_unique[which(Species_unique$Species_unique=="Nicidion cariboea ex Eunice cariboea"),"Species_unique"]="Nicidion cariboea"} #"Nicidion cariboea ex (no aceptado) Eunice cariboea"
-
-if (length(which(Species_unique$Species_unique=="Pennaria disticha australis"))==0) {
-  print("Nombre no coincide")
-  beep(9)
-  stop("Pennaria disticha australis")
-} else {Species_unique[which(Species_unique$Species_unique=="Pennaria disticha australis"),"Species_unique"]="Pennaria disticha"} #"Pennaria disticha australis"
-
-if (length(which(Species_unique$Species_unique=="Scorpora notata"))==0) {
-  print("Nombre no coincide")
-  beep(9)
-  stop("Scorpora notata")
-} else {Species_unique[which(Species_unique$Species_unique=="Scorpora notata"),"Species_unique"]="Scorpaena notata"} #"Scorpora notata"
-
-if (length(which(Species_unique$Species_unique=="Wurdermannia magna"))==0) {
-  print("Nombre no coincide")
-  beep(9)
-  stop("Wurdermannia magna")
-} else {Species_unique[which(Species_unique$Species_unique=="Wurdermannia magna"),"Species_unique"]="Wurdemannia"} #"Wurdermannia magna"
-
-if (length(which(Species_unique$Species_unique=="Cerithium vulgare"))==0) {
-  print("Nombre no coincide")
-  beep(9)
-  stop("Cerithium vulgare")
-} else {Species_unique[which(Species_unique$Species_unique=="Cerithium vulgare"),"Species_unique"]="Cerithium vulgatum"} #"Cerithium vulgare"
-
-
-
-###############
-# Este proceso lo hago para ir seleccionando y eliminando nombres de especies mas facilmente y rapido
-temp=wormsbynames(Species_unique[,"Species_unique"], marine_only = F) # busca las especies que coinciden exactamente y las que no les pone un NA
-
-Species_unique_data=data.frame(Species_unique,temp)
-
-##################
-
-
+# 
+# if (length(which(Species_unique$Species_unique=="Cerithium vulgare"))==0) {
+#   print("Nombre no coincide")
+#   beep(9)
+#   stop("Cerithium vulgare")
+# } else {Species_unique[which(Species_unique$Species_unique=="Cerithium vulgare"),"Species_unique"]="Cerithium vulgatum"} #"Cerithium vulgare"
 
 
 # ########### WORRMS (otro paquete diferente) #####################################
@@ -1624,14 +1620,19 @@ for (i in 1:length(Species_unique_data[,1])) {
   BD_Primeros[temp,12:40]=Species_unique_data[i,]
 }
 
+BD_Primeros=BD_Primeros[-which(is.na(BD_Primeros$Specie)),]
 temp=which(is.na(BD_Primeros$modified))
+
 
 if (!all(BD_Primeros$Specie[temp]%in%no.buscar)) {
   print(BD_Primeros$Specie[temp][which(BD_Primeros$Specie[temp]%in%no.buscar==FALSE)])
   stop("HAY UNA ESPECIE NO ASIGANDA BIEN")
 }
 
-BD_Primeros=BD_Primeros[,-which(colnames(BD_Primeros)%in%c("Especie_no_modificada","Species_unique"))]
+temp=which(colnames(BD_Primeros)%in%c("Especie_no_modificada","Species_unique"))
+if (length(temp)!=0) {
+BD_Primeros=BD_Primeros[,-temp]
+}
 
 a=which(is.na(BD_Primeros$scientificname))
 if (length(a)!=0) {
@@ -2125,7 +2126,8 @@ write.csv2(Observadores_EAI,
 #            file = paste("BD_Observadores_",format(as.Date(Sys.Date(),format="%Y-%m-%d"),"%d%m%y"),".xlsx",sep=""))
 } else {
   print("OBSERVADORES DEL MAR FALLA")
-  }
+  invisible(readline(prompt="Pagina web de observadore del mar no funciona. Press [enter] to continue"))
+}
 
 # DIVERSIMAR ####
 diversimar <- read_html('https://diversimar.cesga.es/visor/data/observacionesT.json')
@@ -2183,6 +2185,7 @@ for (i in 1:length(temp[,1])) {
 
 BD_Primeros=rbind(BD_Primeros,EAI_Diversimar)
 
+
 write.csv2(EAI_Diversimar,
           file = paste("BD_EAI_Diversimar_",format(as.Date(Sys.Date(),format="%Y-%m-%d"),"%d%m%y"),".csv",sep=""),
           sep="\t",
@@ -2190,10 +2193,18 @@ write.csv2(EAI_Diversimar,
           fileEncoding = "UTF-8")
 } else {
   print("DIVERSIMAR FALLA")
-  }
+  invisible(readline(prompt="Pagina web de DIVERSIMAR FALLA. Press [enter] to continue"))
+}
+
+#conocer si hay filas duplicadas y eliminarlas
+BD_COMPLETA=BD_Primeros
+temp=which(duplicated(BD_COMPLETA))
+if (length(temp)!=0) {
+  BD_COMPLETA=BD_COMPLETA[-temp,]
+} 
 
 # Guardar base de datos completa ####
-write.csv2(BD_Primeros,
+write.csv2(BD_COMPLETA,
            file = paste("BD_COMPLETA_",format(as.Date(Sys.Date(),format="%Y-%m-%d"),"%d%m%y"),".csv",sep=""),
            sep="\t",
            row.names = F,
@@ -2205,8 +2216,10 @@ write.csv2(BD_Primeros,
 # Estatus especies ####
 Estatus=NULL
 
-Nombres_columnas=c("Especie", "EASIN_check", "EASIN_Remarks", "Status_IEO_2018",
-                   "Status_JRC_IUCN_2018", "Tsiamis_2019", "Status_IEO_2021", "Status_IEO_2022","Establishment_success","Demarcacion")
+Nombres_columnas=c("Especie", "EASIN_check", "EASIN_Remarks",
+                   "Status_JRC_IUCN_2018", "Tsiamis_2019", 
+                   "Status_IEO_2021", "Status_IEO_2022","Establishment_success",
+                   "Demarcacion")
 
 
 for (i in 1:5) {
@@ -2221,7 +2234,7 @@ for (i in 1:5) {
   
   Excel=data.frame(get(demarcacion[i]))
   
-  temp=Excel[-c(1,2),c("Scientific.name","EASIN.check", "EASIN.Remarks", "Status._IEO_2018",
+  temp=Excel[-c(1,2),c("Scientific.name","EASIN.check", "EASIN.Remarks",
                        "Status.JRC_.IUCN.2018", "Tsiamis_2019", "Status_IEO_2021", 
                        "Status_IEO_2022", "Establishment_success")]
   
@@ -2268,7 +2281,8 @@ BD_Estatus=Estatus
 # Comprueba que las especies de la base de datos de estado coincidan con la general de primeros registros
 if (length(Estatus$Especie)==length(which(str_detect(BD_Primeros$Archivo, "BD_primeros registros_")))){
   print("Los datos coinciden, todo OK")
-  }
+  invisible(readline(prompt="Press [enter] to continue"))
+}
 
 # Poner el estatus completo
 estatus=unique(BD_Estatus$Status_IEO_2021)
@@ -2279,8 +2293,14 @@ for (i in 2:length(estatus)) {
   BD_Estatus$Status_IEO_2021[temp]=estatus2[i] 
 }
 
+#conocer si hay filas duplicadas y eliminarlas
+temp=which(duplicated(BD_Estatus))
+if (length(temp)!=0) {
+  BD_Estatus=BD_Estatus[-temp,]
+} 
+
 write.csv2(BD_Estatus,
-           file = paste("Base_Datos_ESTATUS",format(as.Date(Sys.Date(),format="%Y-%m-%d"),"%d%m%y"),".csv",sep=""),
+           file = paste("Base_Datos_ESTATUS_",format(as.Date(Sys.Date(),format="%Y-%m-%d"),"%d%m%y"),".csv",sep=""),
            row.names = F,
            fileEncoding = "UTF-8")
 
@@ -2398,6 +2418,13 @@ plot(BD_Primeros$Longitud,BD_Primeros$Latitud)
 #   Estatus_EAI=c(Estatus_EAI, temp)
 # }
 # BD_Primeros$Estatus_EAI_IEO_2021=Estatus_EAI
+
+#conocer si hay filas duplicadas y eliminarlas
+temp=which(duplicated(BD_Primeros))
+if (length(temp)!=0) {
+  BD_Primeros=BD_Primeros[-temp,]
+}
+ 
 
 write.csv2(BD_Primeros,
            file = paste("Base_datos_SOLO_EAI_",format(as.Date(Sys.Date(),format="%Y-%m-%d"),"%d%m%y"),".csv",sep=""),
