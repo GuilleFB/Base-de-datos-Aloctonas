@@ -368,13 +368,13 @@ colnames(temp_Excel_Algas)=c("Genero_especie","Latitud","Longitud","FECHA","N","
 temp=rbind(temp_Excel_Algas,temp_Excel_Invertebrados, temp_Excel_Peces)
 class(temp)
 
-Archivo=rep("Coincidencias_INFRAROK1120_Lista_Especies_Robert_Comas.xlsx",length(temp$Genero_especie))
+Archivo="Coincidencias_INFRAROK1120_Lista_Especies_Robert_Comas.xlsx"
 Year_First_record=as.character(temp$FECHA)
-First_Reference=rep(NA,length(temp$Genero_especie))
+First_Reference=NA
 Other_relevant_reference=temp$CAMPAÑA
-Demarcacion=rep("LEBA",length(temp$Genero_especie))
+Demarcacion="LEBA"
 Abundancia=temp$N
-EAI=rep("EAI4", length(temp$Genero_especie))
+EAI="EAI4"
 Coord_Originales=paste(temp$Longitud,temp$Latitud,sep="_")
 
 tempBD=cbind(Specie=temp$Genero_especie,
@@ -418,10 +418,10 @@ unique(Excel$DM.Marina)
 Excel$DM.Marina="LEBA"
 Archivo=rep("Copia de FD_20N17_EAI_DM_20LEBA-CATALU_D1A.xlsx", length(Excel$Especie))
 
-First_Reference=rep(NA,length(Excel$Especie))
-Other_relevant_reference=rep(NA,length(Excel$Especie))
-Abundancia=rep(NA,length(Excel$Especie))
-EAI=rep("EAI4", length(Excel$Especie))
+First_Reference=NA
+Other_relevant_reference=NA
+Abundancia=NA
+EAI="EAI4"
 Coord_Originales=paste(Excel$Longitud,Excel$Latitud,sep="_")
 
 temp1=as.Date(as.numeric(Excel$Fecha), origin = "1899-12-30")
@@ -508,11 +508,11 @@ tempBD=cbind(Specie=temp$species,
              Latitud=as.character(temp$Latitud),
              Longitud=as.character(temp$Longitud),
              Year_First_record=as.character(temp$date),
-             First_Reference=rep(NA,length(temp$date)),
-             Other_relevant_reference=rep(NA,length(temp$date)),
-             Archivo=rep("Datos invasoras 2008-2020_EIJF.xlsx", length(temp$date)),
-             Demarcacion=rep("LEBA", length(temp$date)),
-             EAI=rep("EAI3", length(temp$date)),
+             First_Reference=NA,
+             Other_relevant_reference=NA,
+             Archivo="Datos invasoras 2008-2020_EIJF.xlsx",
+             Demarcacion="LEBA",
+             EAI="EAI3",
              Coord_Originales=temp$Coord_Originales,
              Abundancia=temp$Mean.abundance....)
 
@@ -578,13 +578,13 @@ tempBD=cbind(Specie=temp$Genero_especie,
              Latitud=as.character(temp$Latitud),
              Longitud=as.character(temp$Longitud),
              Year_First_record=as.character(as.POSIXct(temp$date, origin = "1970-01-01", tz = "UTC")),
-             First_Reference=rep(NA,length(temp$date)),
-             Other_relevant_reference=rep(NA,length(temp$date)),
+             First_Reference=NA,
+             Other_relevant_reference=NA,
              Archivo=temp$Archivo,
-             Demarcacion=rep("LEBA", length(temp$date)),
-             EAI=rep("EAI1", length(temp$date)),
+             Demarcacion="LEBA",
+             EAI="EAI1",
              Coord_Originales=temp$Coord_Originales,
-             Abundancia=rep(NA,length(temp$date))
+             Abundancia=NA
              )
 
 tempBD=data.frame(tempBD)
@@ -624,11 +624,11 @@ tempBD=cbind(
   Latitud=as.character(temp$Latitud),
   Longitud=as.character(temp$Longitud),
   Year_First_record=as.character(temp$FECHA),
-  First_Reference=rep(NA,length(temp$CAMPAÑA)),
-  Other_relevant_reference=rep(NA,length(temp$CAMPAÑA)),
+  First_Reference=NA,
+  Other_relevant_reference=NA,
   Archivo=temp$Archivo,
-  Demarcacion=rep("LEBA", length(temp$CAMPAÑA)),
-  EAI=rep("EAI2", length(temp$CAMPAÑA)),
+  Demarcacion="LEBA",
+  EAI="EAI2",
   Coord_Originales=temp$Coord_Originales,
   Abundancia=temp$N
 )
@@ -660,7 +660,7 @@ tempBD=cbind(
   Latitud=as.character(temp$LATITUD_INI),
   Longitud=as.character(temp$LONGITUD_INI),
   Year_First_record=temp$FECHA,
-  First_Reference=rep(NA,length(temp$CAMPAÑA)),
+  First_Reference=NA,
   Other_relevant_reference=temp$CAMPAÑA,
   Archivo=temp$Archivo,
   Demarcacion=temp$Demarcación,
@@ -784,11 +784,11 @@ tempBD=cbind(
   Latitud=temp_final$Coordenada.Y,
   Longitud=temp_final$Coordenada.X,
   Year_First_record=as.character(temp_final$Fecha.o.periodo),
-  First_Reference=rep(NA,length(temp_final$Especie.EI..ver.pestaña.7.)),
+  First_Reference=NA,
   Other_relevant_reference=temp_final$Observaciones..comentarios,
   Archivo=temp_final$Archivo,
   Demarcacion=temp_final$DM.Marina,
-  EAI=rep("EAI3", length(temp_final$Coordenada.X)),
+  EAI="EAI3",
   Coord_Originales=Coord_Originales,
   Abundancia=temp_final$Abundancia..número.de.individuos.
 ) 
@@ -890,13 +890,13 @@ tempBD=cbind(
   Latitud=temp$UTM_Y,
   Longitud=temp$UTM_X,
   Year_First_record=temp$Any,
-  First_Reference=paste(temp$Autor.s,temp$Font,temp$Referencia,sep=" / "),
-  Other_relevant_reference=paste(temp$Estatus.a.Catalunya, temp$Localitat, sep= " / "),
+  First_Reference=NA,
+  Other_relevant_reference=paste(temp$Autor.s, temp$Font, temp$Referencia, temp$Estatus.a.Catalunya, temp$Localitat, sep= " / "),
   Archivo=temp$Archivo,
-  Demarcacion=rep("LEBA",length(temp$Espècie)),
-  EAI=rep("EAI2", length(temp$Espècie)),
+  Demarcacion="LEBA",
+  EAI="EAI2",
   Coord_Originales=temp$Coord_Originales,
-  Abundancia=rep(NA,length(temp$Espècie))
+  Abundancia=NA
 )
 
 tempBD=data.frame(tempBD)
