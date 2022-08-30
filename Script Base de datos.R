@@ -1482,50 +1482,61 @@ Especies.buscar$Species_unique=gsub(pattern = " sp\\.", replacement = "", x = Es
 Especies.buscar$Species_unique=gsub(pattern = " cf\\.", replacement = "", x = Especies.buscar$Species_unique) #elimino el cf. ya que worms no lo detecta bien
 Especies.buscar$Species_unique=gsub("\\s*\\([^\\)]+\\)","",as.character(Especies.buscar$Species_unique)) #elimino palabras entre parentesis
 
-buscado.by.name=wormsbynames(Especies.buscar[,"Species_unique"], marine_only = F) # buscar la especies y las que no coincide se las salta
+# Directo si todo va bien
+x.inv <- try(solve(wormsbymatchnames(Especies.buscar[,"Species_unique"], marine_only = F)), silent=TRUE)
+
+error.nombres=NULL
+# Para saber en cual falla
+if (str_detect(x.inv[1],"subscript out of bounds")){
+ # buscar la especies y las que no coincide se las salta
+
+buscado.by.name=wormsbynames(Especies.buscar[,"Species_unique"], marine_only = F)
 
 Species_unique_data=data.frame(Especies.buscar, buscado.by.name)
 
 NA.s=which(is.na(Species_unique_data$AphiaID))
 
-if (length(NA.s)!=0) {
-  error.nombres=NULL
-  for (i in 1:length(NA.s)) {
-    x.inv <- try(solve(wormsbymatchnames(Species_unique_data[NA.s[i],"Species_unique"], marine_only = F)), silent=TRUE)
-    if (str_detect(x.inv[1],"== 200 is not TRUE")){
-      error.nombres=c(error.nombres, Species_unique_data[NA.s[i],"Species_unique"])
+  if (length(NA.s)!=0) {
+    for (i in 1:length(NA.s)) {
+      x.inv <- try(solve(wormsbymatchnames(Species_unique_data[NA.s[i],"Species_unique"], marine_only = F)), silent=TRUE)
+      if (str_detect(x.inv[1],"== 200 is not TRUE")){
+        error.nombres=c(error.nombres, Species_unique_data[NA.s[i],"Species_unique"])
+        print(paste(round(i/length(NA.s)*100,2),"% -->",paste(i,length(NA.s), sep= " de "),sep = " "))
+        next
+      } else {
+        Species_unique_data[NA.s[i],3:dim(Species_unique_data)[2]]=wormsbymatchnames(Species_unique_data[NA.s[i],"Species_unique"], marine_only = F) # busca las que no coinciden exactamente  
+      }
       print(paste(round(i/length(NA.s)*100,2),"% -->",paste(i,length(NA.s), sep= " de "),sep = " "))
-      next
-    } else {
-      Species_unique_data[NA.s[i],3:dim(Species_unique_data)[2]]=wormsbymatchnames(Species_unique_data[NA.s[i],"Species_unique"], marine_only = F) # busca las que no coinciden exactamente  
     }
-    print(paste(round(i/length(NA.s)*100,2),"% -->",paste(i,length(NA.s), sep= " de "),sep = " "))
-  }
-  no.buscar=c("Haplosporidium pinnae", "Mona blanca", "Myxobolus portucalensis",
-              "Anemona negra", "Anemona", "Ascidia puntos rojos/naranjas",
-              "Esponja blanca", "Hermitano")
-  
-  nombres.modificar=error.nombres[-which(error.nombres%in%no.buscar)]
-  
-  if (length(nombres.modificar%in%"Wurdermannia magna")!=0) {
-    Species_unique_data[which(Species_unique_data$Species_unique=="Wurdermannia magna"),"Species_unique"]="Wurdemannia" #"Wurdermannia magna"
-    Species_unique_data[which(Species_unique_data$Species_unique=="Wurdemannia"),3:dim(Species_unique_data)[2]]=wormsbymatchnames(Species_unique_data[which(Species_unique_data$Species_unique=="Wurdemannia"),"Species_unique"], marine_only = F)
-    NA.s=which(is.na(Species_unique_data$AphiaID))
-    error.nombres=NULL
-    error.nombres=c(error.nombres, Species_unique_data[NA.s,"Species_unique"])
+    no.buscar=c("Haplosporidium pinnae", "Mona blanca", "Myxobolus portucalensis",
+                "Anemona negra", "Anemona", "Ascidia puntos rojos/naranjas",
+                "Esponja blanca", "Hermitano")
+    
     nombres.modificar=error.nombres[-which(error.nombres%in%no.buscar)]
-  } else {
-    beep(9)
-    stop("Nombres no coinciden")
+    
+    if (length(nombres.modificar%in%"Wurdermannia magna")!=0) {
+      Species_unique_data[which(Species_unique_data$Species_unique=="Wurdermannia magna"),"Species_unique"]="Wurdemannia" #"Wurdermannia magna"
+      Species_unique_data[which(Species_unique_data$Species_unique=="Wurdemannia"),3:dim(Species_unique_data)[2]]=wormsbymatchnames(Species_unique_data[which(Species_unique_data$Species_unique=="Wurdemannia"),"Species_unique"], marine_only = F)
+      NA.s=which(is.na(Species_unique_data$AphiaID))
+      error.nombres=NULL
+      error.nombres=c(error.nombres, Species_unique_data[NA.s,"Species_unique"])
+      nombres.modificar=error.nombres[-which(error.nombres%in%no.buscar)]
+    } else {
+      beep(9)
+      stop("Nombres no coinciden")
+    }
+    if (length(nombres.modificar)>0) {
+      beep(8)
+      stop("Hay nombres que no detecta WORMS y hay que modificar")
+    }
+    a=invisible(readline(prompt="TODO VA BIEN. Desea continuar con el script? si/no "))
+    if (str_detect(a,regex("si|yes|s|y",ignore_case = T))) {
+      stop("OK, continuamos")
+    }
   }
-  if (length(nombres.modificar)>0) {
-    beep(8)
-    stop("Hay nombres que no detecta WORMS y hay que modificar")
-  }
-  a=invisible(readline(prompt="TODO VA BIEN. Desea continuar con el script? si/no "))
-  if (str_detect(a,regex("si|yes|s|y",ignore_case = T))) {
-    stop("OK, continuamos")
-  }
+} else {
+  buscado.by.name=wormsbymatchnames(Especies.buscar[,"Species_unique"], marine_only = F)
+  Species_unique_data=data.frame(Especies.buscar, buscado.by.name)
 }
 # Antiguo ############
 # Cambiar los nombres por lo que si detecta el WORMS
@@ -1964,8 +1975,8 @@ r <- read_html('https://www.observadoresdelmar.es/Map/GetMapMarkers?InitProjectI
 if (exists("r")) {
 data <- data.frame(jsonlite::fromJSON(html_text(r)))
 
-data$ObservacioLatitud=round(as.numeric(data$ObservacioLatitud),4)
-data$ObservacioLongitud=round(as.numeric(data$ObservacioLongitud),4)
+data$ObservacioLatitud=as.numeric(data$ObservacioLatitud)
+data$ObservacioLongitud=as.numeric(data$ObservacioLongitud)
 
 temp=which(data$ObservacioLongitud<181&data$ObservacioLongitud>(-181)&
              data$ObservacioLatitud<91&data$ObservacioLatitud>(-91))
@@ -2056,10 +2067,13 @@ Observadores_EAI$Specie[which(Observadores_EAI$Specie=="Posiblemente Dictyota cy
 Observadores_EAI$Specie[which(Observadores_EAI$Specie=="Caranx Crysos??")]="Caranx crysos"
 Observadores_EAI$Specie[which(Observadores_EAI$Specie=="C. crambe")]="Crambe crambe"
 Observadores_EAI$Specie[which(Observadores_EAI$Specie=="C. crambe")]="Crambe crambe"
+Observadores_EAI$Specie[which(Observadores_EAI$Specie=="Pinna nobilis muertas")]="Pinna nobilis"
+Observadores_EAI$Specie[which(Observadores_EAI$Specie=="Halopteris sp. posiblemente, aunque está rota y hecha polvo")]="Halopteris"
 
 # Elimino datos sin sentido
 Eliminar=c("Cianobacterias", "alga filamentosa","És una espècie filamentosa (grup ectocarpals)",
-           "Alga filamentosa","No identificada","alga filamentosa que recubreix tot el roquer","filamentosas")
+           "Alga filamentosa","No identificada","alga filamentosa que recubreix tot el roquer",
+           "filamentosas","No identificada/Unidentified")
 
 temp=which(Observadores_EAI$Specie%in%Eliminar)
 if (length(temp)!=0) {
@@ -2069,23 +2083,37 @@ if (length(temp)!=0) {
 
 nombres=unique(Observadores_EAI$Specie)
 
-# Para saber en cual falla
-for (i in 1:length(nombres)) {
-  x.inv <- try(solve(wormsbymatchnames(nombres[i], marine_only = F)), silent=TRUE)
-  if (str_detect(x.inv[1],"== 200 is not TRUE")){
-    error.nombres=c(error.nombres, nombres[i])
-    print(paste(round(i/length(nombres)*100,2),"% -->",paste(i,length(nombres), sep= " de "),sep = " "))
-    next
-  } else {
-    temp=wormsbymatchnames(nombres[i], marine_only = F) # busca las que no coinciden exactamente
-  }
-  print(paste(round(i/length(nombres)*100,2),"% -->",paste(i,length(nombres), sep= " de "),sep = " "))
-}
-
 # Directo si todo va bien
+x.inv <- try(solve(wormsbymatchnames(nombres, marine_only = F)), silent=TRUE)
 temp=wormsbymatchnames(stri_trans_general(nombres,"Latin-ASCII") #elimina el espacio \\s+ por el normal y transforma en ASCII (elimina acentos o letras raras)
                        ,marine_only = F)
 
+temp1=NULL
+error.nombres=NULL
+# Para saber en cual falla
+if (str_detect(x.inv[1],"subscript out of bounds")){
+  for (i in 1:length(nombres)) {
+    x.inv <- try(solve(wormsbymatchnames(nombres[i], marine_only = F)), silent=TRUE)
+    if (str_detect(x.inv[1],"== 200 is not TRUE")){
+      error.nombres=c(error.nombres, nombres[i])
+      print(paste(round(i/length(nombres)*100,2),"% -->",paste(i,length(nombres), sep= " de "),sep = " ")) # control de evolucion
+      next
+    } else {
+      temp2=wormsbymatchnames(nombres[i], marine_only = F)
+      temp1=rbind(temp1,temp2)
+      print(paste(round(i/length(nombres)*100,2),"% -->",paste(i,length(nombres), sep= " de "),sep = " ")) # control de evolucion
+    }
+  }
+}
+
+if (length(error.nombres)!=0) {
+  print("OBSERVADORES DEL MAR FALLA tiene nombres erroneos")
+  a=invisible(readline(prompt="OBSERVADORES DEL MAR FALLA tiene nombres erroneos. Desea parar el script?  si/no "))
+  if (str_detect(a,regex("si|yes|s|y",ignore_case = T))) {
+    stop("OK, script parado")
+  }
+}
+#########################
 
 columnas=which(colnames(Observadores_EAI)%in%colnames(temp))
 
@@ -2126,7 +2154,7 @@ write.csv2(Observadores_EAI,
            fileEncoding = "UTF-8")
 } else {
   print("OBSERVADORES DEL MAR FALLA")
-  a=invisible(readline(prompt="Pagina web de observadore del mar no funciona. Desea parar el scrip?  si/no "))
+  a=invisible(readline(prompt="Pagina web de observadore del mar no funciona. Desea parar el script?  si/no "))
   if (str_detect(a,regex("si|yes|s|y",ignore_case = T))) {
     stop("OK, script parado")
   }
@@ -2203,7 +2231,7 @@ write.csv2(EAI_Diversimar,
 
 # Conocer si hay filas duplicadas y eliminarlas
 BD_COMPLETA=BD_Primeros
-temp=which(duplicated(BD_COMPLETA))
+temp=which(duplicated(BD_COMPLETA[,-which(colnames(BD_COMPLETA)=="Archivo")]))
 if (length(temp)!=0) {
   BD_COMPLETA=BD_COMPLETA[-temp,]
 } 
@@ -2306,7 +2334,7 @@ if (length(Estatus$Specie)==length(which(str_detect(BD_COMPLETA$Archivo, "BD_pri
 # }
 
 # Conocer si hay filas duplicadas y eliminarlas
-temp=which(duplicated(BD_Estatus))
+temp=which(duplicated(BD_Estatus[,-which(colnames(BD_Estatus)=="Archivo")]))
 if (length(temp)!=0) {
   BD_Estatus=BD_Estatus[-temp,]
 } 
@@ -2434,7 +2462,7 @@ for (i in 1:length(data$Puertos)) {
 # Base_datos_SOLO_EAI$Estatus_EAI_IEO_2021=Estatus_EAI
 
 # Conocer si hay filas duplicadas y eliminarlas
-temp=which(duplicated(Base_datos_SOLO_EAI))
+temp=which(duplicated(Base_datos_SOLO_EAI[,-which(colnames(Base_datos_SOLO_EAI)=="Archivo")]))
 if (length(temp)!=0) {
   Base_datos_SOLO_EAI=Base_datos_SOLO_EAI[-temp,]
 }
