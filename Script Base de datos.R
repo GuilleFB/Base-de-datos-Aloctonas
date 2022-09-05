@@ -44,9 +44,12 @@ path="D:\\2021 - ALOCTONAS\\Base de datos a modificar\\Archivos"
 # path=choose.dir() # Elegir la carpeta Archivos de la base de datos de Aloctonas
 setwd(path) 
 
-# Carga archivos pesados
-capaWGS84 <- readOGR(dsn = path, layer = "capaWGS84")
-capaWGS84_10 <- readOGR(dsn = path, layer = "capaWGS84_10")
+# # Carga archivos pesados
+# capaWGS84 <- readOGR(dsn = path, layer = "capaWGS84")
+# capaWGS84_10 <- readOGR(dsn = path, layer = "capaWGS84_10")
+# save(capaWGS84, capaWGS84_10, file = "capas_base_de_datos.RData")
+load("capas_base_de_datos.RData")
+
 
 # Inicio creacion base de datos ####
 
@@ -94,22 +97,20 @@ for (i in 1:length(Archivos_primeros_registros)) {
   
   temp=data.frame(Excel2[,c("Scientific.name", "Latitude..N.", "Longitude..E.", "Year", "Reference", "Other.relevant.references")])
   
-  temp$Archivo=rep(paste("BD_primeros registros_",demarcacion,".xlsx",sep="")[i], length(temp[,1]))
-  temp$Demarcacion=rep(demarcacion[i], length(temp[,1]))
-  temp$EAI=rep("EAI5", length(temp[,1]))
+  temp$Archivo=paste("BD_primeros registros_",demarcacion[i],".xlsx",sep="")
+  temp$Demarcacion=demarcacion[i]
+  temp$EAI="EAI5"
   temp$Coord_Originales=paste(temp$Longitude..E.,temp$Latitude..N.,sep="_")
   BD_Primeros=rbind(BD_Primeros,temp)
   
     
 }
 
-Abundancia=rep(NA, length(BD_Primeros$Scientific.name))
+Abundancia=NA
 
 BD_Primeros=cbind(BD_Primeros,Abundancia)
 
 colnames(BD_Primeros)=c("Specie","Latitud","Longitud","Year_First_record","First_Reference","Other_relevant_reference","Archivo","Demarcacion","EAI","Coord_Originales","Abundancia")
-
-BD_primeros_registros=BD_Primeros
 
 BD_Primeros$Specie=trimws(BD_Primeros$Specie, "both", whitespace = "[ \\h\\v]") #elimina los espacios finales de todas las especies
 
@@ -151,7 +152,7 @@ temp=data.frame(Excel2[,c(11, 23, 24, 26, 27)])
 temp$Lat.Y.1[which(is.na(temp$Lat.Y.1))]=temp$Lat.Y[which(is.na(temp$Lat.Y.1))]
 temp$Long.X.1[which(is.na(temp$Long.X.1))]=temp$Long.X[which(is.na(temp$Long.X.1))]
 
-Excel2$Archivo=rep("BD_registros completos_todas demarcaciones.xlsx", length(Excel2[,1]))
+Excel2$Archivo="BD_registros completos_todas demarcaciones.xlsx"
 
 # Transformar Fechas numericas en fechas normales
 a=which(as.numeric(Excel2$Fecha.de.regist..Exacta)>10000)
@@ -180,11 +181,18 @@ Todo$Lat.Y.1[temp3]=1
 Todo$Long.X[temp4]=1
 Todo$Long.X.1[temp5]=1
 
-oca=which(Todo$Zona==0) # para saber que lineas tienen NA's
-Todo=Todo[-oca,]# elimino las lineas que contenian NA's
+eliminar=which(Todo$Zona==0) # para saber que lineas tienen NA's
+if (length(eliminar)!=0) {
+  Todo=Todo[-eliminar,]# elimino las lineas que contenian NA's
+}
 
 Todo$Suma=rowSums(Todo[,c(2,3,4,5)]) # sumo las lineas para saber cuales tenian datos de coordenadas en el Excel 2
-Todo=Todo[-which(Todo$Suma>=1),] # para eliminar las lineas que si que tiene coordenadas reales y quedarme solo con las que tiene un sitio escrito en letras
+
+eliminar=which(Todo$Suma>=1) # para eliminar las lineas que si que tiene coordenadas reales y quedarme solo con las que tiene un sitio escrito en letras
+if (length(eliminar)!=0) {
+  Todo=Todo[-eliminar,]
+}
+ 
 
 # Añadir a la zona el nombre de España para centrar mas la busqueda
 tempXX=paste(Excel2$Zona[Todo$ID],
@@ -416,7 +424,7 @@ names(Excel)
 unique(Excel$DM.Marina)
 
 Excel$DM.Marina="LEBA"
-Archivo=rep("Copia de FD_20N17_EAI_DM_20LEBA-CATALU_D1A.xlsx", length(Excel$Especie))
+Archivo="Copia de FD_20N17_EAI_DM_20LEBA-CATALU_D1A.xlsx"
 
 First_Reference=NA
 Other_relevant_reference=NA
@@ -517,14 +525,14 @@ tempBD=cbind(Specie=temp$species,
              Abundancia=temp$Mean.abundance....)
 
 tempBD=data.frame(tempBD)
-temp=which(is.na(tempBD$Specie))
-if (length(temp)!=0) {
-  tempBD=tempBD[-temp,]
+
+eliminar=which(is.na(tempBD$Specie))
+if (length(eliminar)!=0) {
+  tempBD=tempBD[-eliminar,]
 }
 tempBD$Specie=trimws(tempBD$Specie, "both", whitespace = "[ \\h\\v]")
 
 BD_Primeros=rbind(BD_Primeros,tempBD)
-head(BD_Primeros)
 
 rm(tempBD)
 invisible(capture.output(gc()))
@@ -549,10 +557,10 @@ for (i in 1:3) {
   temp=rbind(temp, Estaciones)
 }
 
-temp$Latitud=rep(NA,length(temp[,1]))
-temp$Longitud=rep(NA,length(temp[,1]))
-temp$date=rep(NA,length(temp[,1]))
-temp$Coord_Originales=rep(NA,length(temp[,1]))
+temp$Latitud=NA
+temp$Longitud=NA
+temp$date=NA
+temp$Coord_Originales=NA
 
 for (i in 1:length(Sitios[,"ZONA_NAME"])) {
   coor=unique(Coordenadas[which(Sitios[i,"ZONA_NAME"]==Coordenadas$Zona),c("Latitud","Longitud","Fecha")])
@@ -607,9 +615,9 @@ Sitios=Sitios[,4:5]
 
 temp=data.frame(read_excel("Datos_RAS.xlsx", sheet = "Datos brutos"))
 
-temp$Latitud=rep(NA,length(temp[,1]))
-temp$Longitud=rep(NA,length(temp[,1]))
-temp$Coord_Originales=rep(NA,length(temp[,1]))
+temp$Latitud=NA
+temp$Longitud=NA
+temp$Coord_Originales=NA
 
 for (i in 1:length(Sitios[,"ZONA_NAME"])) {
   coor=unique(Coordenadas[which(Sitios[i,"ZONA_NAME"]==Coordenadas$Zona),c("Latitud","Longitud","Fecha")])
@@ -617,7 +625,7 @@ for (i in 1:length(Sitios[,"ZONA_NAME"])) {
   temp[which(temp$ZONA==Sitios[i,"ID_ZONA"]),"Coord_Originales"]=paste(unique(Coordenadas[which(Sitios[i,2]==Coordenadas$Zona),c("Provincia_Isla", "Localidad", "Zona", "Latitud", "Longitud")]),collapse = "_")
 }
 
-temp$Archivo=rep("Datos_RAS.xlsx", length(temp[,1]))
+temp$Archivo="Datos_RAS.xlsx"
 
 tempBD=cbind(
   Specie=temp$Genero_especie,
@@ -651,9 +659,9 @@ assign("temp",
        data.frame(read_excel("Especies_Aloctonas_MEDITS_todo_RC_19042021.xlsx")))
 
 
-temp$Archivo=rep("Especies_Aloctonas_MEDITS_todo_RC_19042021.xlsx", length(temp[,1]))
+temp$Archivo="Especies_Aloctonas_MEDITS_todo_RC_19042021.xlsx"
 
-temp$EAI=rep("EAI4", length(temp[,1]))
+temp$EAI="EAI4"
 
 tempBD=cbind(
   Specie=temp$ESPECIE,
@@ -710,7 +718,7 @@ for (i in 1:length(temp$UTM.1X1)) {
   Coordenadas=rbind(Coordenadas,temp2_Coordenadas)
 }
 
-temp$Archivo=rep("Especies_Exotiques_Invasores_GVA_092021.xlsx", length(temp[,1]))
+temp$Archivo="Especies_Exotiques_Invasores_GVA_092021.xlsx"
 
 tempBD=cbind(
   Specie=temp$Espècie,
@@ -720,10 +728,10 @@ tempBD=cbind(
   First_Reference=NA,
   Other_relevant_reference=temp$Tipus.observació,
   Archivo=temp$Archivo,
-  Demarcacion=rep("LEBA",length(temp$Espècie)),
-  EAI=rep("EAI4", length(temp$Espècie)),
+  Demarcacion="LEBA",
+  EAI="EAI4",
   Coord_Originales=Coord_Originales,
-  Abundancia=rep(NA,length(temp$Espècie))
+  Abundancia=NA
 )
 
 tempBD=data.frame(tempBD)
@@ -757,9 +765,9 @@ temp3=data.frame(temp3, row.names = 1:length(temp3[,1]))
 
 colnames(temp3)=colnames(temp1)
 
-temp1$Archivo=rep("Exoticas FD EEI D_ESAL.xlsx", length(temp1[,1]))
-temp2$Archivo=rep("Exoticas FD EEI D_LEBA.xlsx", length(temp2[,1]))
-temp3$Archivo=rep("Exoticas FD EEI D_SUD.xlsx", length(temp3[,1]))
+temp1$Archivo="Exoticas FD EEI D_ESAL.xlsx"
+temp2$Archivo="Exoticas FD EEI D_LEBA.xlsx"
+temp3$Archivo="Exoticas FD EEI D_SUD.xlsx"
 
 temp_final=rbind(temp1,temp2,temp3)
 Coord_Originales=paste(temp_final$CC.AA.que.corresponde,temp_final$Coordenada.X,temp_final$Coordenada.Y,sep="_")
@@ -824,7 +832,7 @@ temp$UTM.10...10.km[which(temp$UTM.10...10.km!="-")]=paste("31T",temp$UTM.10...1
 
 temp$UTM.1...1.km[which(temp$UTM.1...1.km!="-")]=paste("31T",temp$UTM.1...1.km[which(temp$UTM.1...1.km!="-")],sep="")
 
-temp$Archivo=rep("Marines al litoral català.xlsx", length(temp[,1]))
+temp$Archivo="Marines al litoral català.xlsx"
 
 temp$Coord_Originales=paste(temp$UTM.10...10.km,temp$UTM.1...1.km,temp$UTM_X,temp$UTM_Y,sep="_")
 
@@ -1475,7 +1483,7 @@ if (length(a)>0) {
   Species_unique=Species_unique[-a]
 }
 
-Especies.buscar=data.frame("Especie_no_modificada"=Species_unique,Species_unique)
+Especies.buscar=data.frame("Especie_no_modificada"=Species_unique, Species_unique)
 
 Especies.buscar$Species_unique=str_squish(Especies.buscar$Species_unique) #elimino dobles espacios
 Especies.buscar$Species_unique=gsub(pattern = " sp\\.", replacement = "", x = Especies.buscar$Species_unique) #elimino el sufijo sp. ya que worms no lo detecta bien
@@ -1483,14 +1491,15 @@ Especies.buscar$Species_unique=gsub(pattern = " cf\\.", replacement = "", x = Es
 Especies.buscar$Species_unique=gsub("\\s*\\([^\\)]+\\)","",as.character(Especies.buscar$Species_unique)) #elimino palabras entre parentesis
 
 # Directo si todo va bien
-x.inv <- try(solve(wormsbymatchnames(Especies.buscar[,"Species_unique"], marine_only = F)), silent=TRUE)
+x.inv <- try(solve(wormsbymatchnames(Especies.buscar$Species_unique, marine_only = F)), silent=TRUE)
 
 error.nombres=NULL
 # Para saber en cual falla
 if (str_detect(x.inv[1],"subscript out of bounds")){
  # buscar la especies y las que no coincide se las salta
+print("Aparecio un error en la forma rapida, comienzo la forma mas lenta de buscar en WORMS")
 
-buscado.by.name=wormsbynames(Especies.buscar[,"Species_unique"], marine_only = F)
+buscado.by.name=wormsbynames(Especies.buscar$Species_unique, marine_only = F)
 
 Species_unique_data=data.frame(Especies.buscar, buscado.by.name)
 
@@ -1535,7 +1544,7 @@ NA.s=which(is.na(Species_unique_data$AphiaID))
     }
   }
 } else {
-  buscado.by.name=wormsbymatchnames(Especies.buscar[,"Species_unique"], marine_only = F)
+  buscado.by.name=wormsbymatchnames(Especies.buscar$Species_unique, marine_only = F)
   Species_unique_data=data.frame(Especies.buscar, buscado.by.name)
 }
 # Antiguo ############
@@ -1625,21 +1634,21 @@ for (i in 1:length(Species_unique_data[,1])) {
   BD_Primeros[temp,12:40]=Species_unique_data[i,]
 }
 
-temp=which(is.na(BD_Primeros$Specie))
-if (length(temp)!=0) {
-  BD_Primeros=BD_Primeros[-temp,]
+a=which(is.na(BD_Primeros$Specie))
+if (length(a)!=0) {
+  BD_Primeros=BD_Primeros[-a,]
 }
 
 
-temp=which(is.na(BD_Primeros$modified))
-if (!all(BD_Primeros$Specie[temp]%in%no.buscar)) {
-  print(BD_Primeros$Specie[temp][which(BD_Primeros$Specie[temp]%in%no.buscar==FALSE)])
+a=which(is.na(BD_Primeros$modified))
+if (!all(BD_Primeros$Specie[a]%in%no.buscar)) {
+  print(BD_Primeros$Specie[a][which(BD_Primeros$Specie[a]%in%no.buscar==FALSE)])
   stop("HAY UNA ESPECIE NO ASIGNADA BIEN")
 }
 
-temp=which(colnames(BD_Primeros)%in%c("Especie_no_modificada","Species_unique"))
-if (length(temp)!=0) {
-BD_Primeros=BD_Primeros[,-temp]
+a=which(colnames(BD_Primeros)%in%c("Especie_no_modificada","Species_unique"))
+if (length(a)!=0) {
+BD_Primeros=BD_Primeros[,-a]
 }
 
 a=which(is.na(BD_Primeros$scientificname))
@@ -1680,9 +1689,9 @@ BD_Primeros$Year_First_record=gsub("\\.0", "",as.character(BD_Primeros$Year_Firs
 
 
 # Eliminar la Dorada (Sparus aurata) de las demarcaciones en las que no es Invasora
-temp=which(BD_Primeros$scientificname=="Sparus aurata"&BD_Primeros$Demarcacion!="CAN")
-if (length(temp)!=0) {
-  BD_Primeros=BD_Primeros[-temp,]
+a=which(BD_Primeros$scientificname=="Sparus aurata"&BD_Primeros$Demarcacion!="CAN")
+if (length(a)!=0) {
+  BD_Primeros=BD_Primeros[-a,]
 }
 
 
@@ -1759,7 +1768,12 @@ Todo_EAI$Specie[which(Todo_EAI$Specie=="Sepulidae gen sp.")]="Serpulidae"
 Todo_EAI$Specie[which(Todo_EAI$Specie=="Spionidae gen sp.")]="Spionidae"
 
 nombres=unique(Todo_EAI$Specie)
-nombres=nombres[-which(nombres=="\"Leiochrides fauveli\"")]
+
+a=which(nombres=="\"Leiochrides fauveli\"")
+if (length(a)!=0) {
+  nombres=nombres[-a]
+}
+
 
 
 temp=wormsbymatchnames(stri_trans_general(nombres,"Latin-ASCII") #elimina el espacio \\s+ por el normal y transforma en ASCII (elimina acentos o letras raras)
@@ -2027,9 +2041,9 @@ for (i in 1:length(data$IdObervacio)) {
 }
 
 unique(data$Nombre)
-temp=which(data$Nombre==""|data$Nombre=="NOT VALID")
-if (length(temp)!=0) {
-  data=data[-temp,]
+a=which(data$Nombre==""|data$Nombre=="NOT VALID")
+if (length(a)!=0) {
+  data=data[-a,]
 }
 
 Observadores_EAI=matrix(NA, nrow = length(data$Nombre), ncol = length(colnames(BD_Primeros)))
@@ -2075,9 +2089,9 @@ Eliminar=c("Cianobacterias", "alga filamentosa","És una espècie filamentosa (g
            "Alga filamentosa","No identificada","alga filamentosa que recubreix tot el roquer",
            "filamentosas","No identificada/Unidentified")
 
-temp=which(Observadores_EAI$Specie%in%Eliminar)
-if (length(temp)!=0) {
-  Observadores_EAI=Observadores_EAI[-temp,]
+a=which(Observadores_EAI$Specie%in%Eliminar)
+if (length(a)!=0) {
+  Observadores_EAI=Observadores_EAI[-a,]
 }
 
 
@@ -2113,7 +2127,7 @@ if (length(error.nombres)!=0) {
     stop("OK, script parado")
   }
 }
-#########################
+
 
 columnas=which(colnames(Observadores_EAI)%in%colnames(temp))
 
@@ -2165,8 +2179,6 @@ diversimar <- read_html('https://diversimar.cesga.es/visor/data/observacionesT.j
 
 if (exists("diversimar")) {
 data <- data.frame(jsonlite::fromJSON(html_text(diversimar)))
-
-# plot(data$features.properties$long_4326,data$features.properties$lat_4326)
 
 temp=which(BD_Primeros$Demarcacion=="NOR")
 
@@ -2229,11 +2241,25 @@ write.csv2(EAI_Diversimar,
   }
 }
 
-# Conocer si hay filas duplicadas y eliminarlas
+
 BD_COMPLETA=BD_Primeros
-temp=which(duplicated(BD_COMPLETA[,-which(colnames(BD_COMPLETA)=="Archivo")]))
-if (length(temp)!=0) {
-  BD_COMPLETA=BD_COMPLETA[-temp,]
+
+# # Añado los nombres a las columnas donde no los tienen
+# a=which(is.na(BD_COMPLETA$scientificname)|is.na(BD_COMPLETA$valid_name))
+# if (length(a)!=0) {
+#   BD_COMPLETA$valid_name[a]=BD_COMPLETA$scientificname[a]
+# }
+# 
+# b=which(is.na(BD_COMPLETA$scientificname)|is.na(BD_COMPLETA$valid_name))
+# if (length(b)!=0) {
+#   BD_COMPLETA$valid_name[b]=BD_COMPLETA$Specie[b]
+#   BD_COMPLETA$scientificname[b]=BD_COMPLETA$Specie[b]
+# }
+
+# Conocer si hay filas duplicadas y eliminarlas
+c=which(duplicated(BD_COMPLETA[,-which(colnames(BD_COMPLETA)=="Archivo")]))
+if (length(c)!=0) {
+  BD_COMPLETA=BD_COMPLETA[-c,]
 } 
 
 # Guardar base de datos completa ####
@@ -2268,7 +2294,7 @@ for (i in 1:5) {
                        "Status.JRC_.IUCN.2018", "Tsiamis_2019", "Status_IEO_2021", 
                        "Status_IEO_2022", "Establishment_success")]
   
-  temp$Demarcacion=rep(demarcacion[i], length(temp$Scientific.name))
+  temp$Demarcacion=demarcacion[i]
   
   colnames(temp)=Nombres_columnas
   
@@ -2297,7 +2323,7 @@ temp=wormsbymatchnames(stri_trans_general(nombres,"Latin-ASCII") #elimina el esp
 temp=data.frame(nombres,temp)
 
 a=which(is.na(temp$scientificname))
-temp$scientificname[a]=temp$nombres[a]
+temp$scientificname[a]=temp$nombres[a] # poner el nombre de las especies en scientificname de las que no he buscado en worms
 
 Estatus$scientificname=NA
 Estatus$valid_name=NA
@@ -2310,14 +2336,28 @@ for (i in 1:length(temp[,1])) {
   Estatus$status[filas]=temp[i,"status"]
 }
 
+a=which(is.na(Estatus$valid_name)|is.na(Estatus$scientificname))
+if (length(a)!=0) {
+  Estatus$scientificname[a]=Estatus$Specie[a]
+  Estatus$valid_name[a]=Estatus$Specie[a]
+}
+
+
 BD_Estatus=Estatus
+
+# Conocer si hay filas duplicadas y eliminarlas
+temp=which(duplicated(BD_Estatus))
+if (length(temp)!=0) {
+  BD_Estatus=BD_Estatus[-temp,]
+}
+
 
 # Comprueba que las especies de la base de datos de estado coincidan con la general de primeros registros
 if (length(Estatus$Specie)==length(which(str_detect(BD_COMPLETA$Archivo, "BD_primeros registros_")))){
   print("Los datos coinciden, todo OK, CONTINUAMOS")
 } else {
   print("Los datos NO coinciden")
-  a=invisible(readline(prompt="Desea parar el scripT?  si/no "))
+  a=invisible(readline(prompt="Desea parar el script?  si/no "))
   if (str_detect(a,regex("si|yes|s|y",ignore_case = T))) {
     stop("OK, script parado")
   }
@@ -2333,25 +2373,30 @@ if (length(Estatus$Specie)==length(which(str_detect(BD_COMPLETA$Archivo, "BD_pri
 #   BD_Estatus$Status_IEO_2021[temp]=estatus2[i] 
 # }
 
-# Conocer si hay filas duplicadas y eliminarlas
-temp=which(duplicated(BD_Estatus[,-which(colnames(BD_Estatus)=="Archivo")]))
-if (length(temp)!=0) {
-  BD_Estatus=BD_Estatus[-temp,]
-} 
-
 write.csv2(BD_Estatus,
            file = paste("Base_Datos_ESTATUS_",format(as.Date(Sys.Date(),format="%Y-%m-%d"),"%d%m%y"),".csv",sep=""),
            row.names = F,
            fileEncoding = "UTF-8")
 
+
 # Eliminacion de especies no EAI ####
+
 # Basandome en los archivos de primeros registros de cada demarcación he seleccionado las especies EAI
+Especies_EAI=sort(unique(c(BD_Estatus$Specie,BD_Estatus$scientificname,BD_Estatus$valid_name))) # En BD_Estatus estan todas las especies invasoras revisadas, extraidas de los archivos de primeros registros por demarcacion
 
-Especies_EAI=unique(BD_Estatus$Specie) # En BD_Estatus estan todas las especies invasoras revisadas, extraidas de los archivos de primeros registros por demarcacion
+temp=which(is.na(Especies_EAI))
+if (length(temp)!=0) {
+  print("Existen NA's en los nombre del Estatus")
+  a=invisible(readline(prompt="Desea eliminar los NA's?  si/no "))
+  if (str_detect(a,regex("si|yes|s|y",ignore_case = T))) {
+    Especies_EAI=Especies_EAI[-temp]
+  }
+}
 
-# Especies_EAI=Especies_EAI[-which(is.na(Especies_EAI))]
-
-temp=which(BD_COMPLETA$Specie%in%Especies_EAI)
+# Selecciono todas las especies Aloctonas de la base de datos completa
+temp=which(BD_COMPLETA$valid_name%in%Especies_EAI |
+              BD_COMPLETA$scientificname%in%Especies_EAI |
+              BD_COMPLETA$Specie%in%Especies_EAI)
 
 if (length(temp)==length(unique(temp))) {
   print("Los datos coinciden, todo OK, CONTINUAMOS")
@@ -2381,9 +2426,12 @@ a=which(Base_datos_SOLO_EAI$Latitud>33&Base_datos_SOLO_EAI$valid_name=="Sparus a
           Base_datos_SOLO_EAI$Latitud>33&Base_datos_SOLO_EAI$valid_name=="Dicentrarchus labrax"|
           Base_datos_SOLO_EAI$Latitud>33&Base_datos_SOLO_EAI$valid_name=="Argyrosomus regius")
 
-Base_datos_SOLO_EAI=Base_datos_SOLO_EAI[-a,]
+if (length(a)!=0) {
+  Base_datos_SOLO_EAI=Base_datos_SOLO_EAI[-a,]
+}
 
-#################### NO FUNCIONA BIEN, MODIFICAR
+
+# Añado coordenadas a algunas coordenadas en caracteres
 data = list(
   Puertos=c("Puerto de valencia","puerto de barcelona", "puerto de a coruña", "puerto de vigo", 
   "puerto de alicante", "puerto de ceuta","Puerto de Cudillero","Puerto de Gijón","Puerto de la Cruz",
@@ -2402,86 +2450,30 @@ for (i in 1:length(data$Puertos)) {
   Base_datos_SOLO_EAI[temp,"Longitud"]=data[["Long"]][i]
 }
 
-# plot(Base_datos_SOLO_EAI$Longitud,Base_datos_SOLO_EAI$Latitud)
-
-# Poner el Estatus IEO que le corresponde
-# Estatus_EAI=NULL
-# for (i in 1:length(Base_datos_SOLO_EAI$Specie)) {
-#   if (length(str_split(Base_datos_SOLO_EAI$Demarcacion[i],"-")[[1]])==3) {
-#     a=str_split(Base_datos_SOLO_EAI$Demarcacion[i],"-")[[1]][1]
-#     b=str_split(Base_datos_SOLO_EAI$Demarcacion[i],"-")[[1]][2]
-#     c=str_split(Base_datos_SOLO_EAI$Demarcacion[i],"-")[[1]][3]
-#     
-#     aa=BD_Estatus$Status_IEO_2021[which(Base_datos_SOLO_EAI$valid_name[i]==BD_Estatus$Especie
-#                                      &a==BD_Estatus$Demarcacion)]
-#     
-#     bb=BD_Estatus$Status_IEO_2021[which(Base_datos_SOLO_EAI$valid_name[i]==BD_Estatus$Especie
-#                                      &b==BD_Estatus$Demarcacion)]
-#     
-#     cc=BD_Estatus$Status_IEO_2021[which(Base_datos_SOLO_EAI$valid_name[i]==BD_Estatus$Especie
-#                                      &c==BD_Estatus$Demarcacion)]
-#     if (length(aa)==0){
-#       aa=NA
-#     }
-#     if (length(bb)==0){
-#       bb=NA
-#     }
-#     if (length(cc)==0){
-#       cc=NA
-#     }
-#     
-#     temp=paste(aa,bb,cc,sep = "/")
-#     } else if (length(str_split(Base_datos_SOLO_EAI$Demarcacion[i],"-")[[1]])==2) {
-#     a=str_split(Base_datos_SOLO_EAI$Demarcacion[i],"-")[[1]][1]
-#     b=str_split(Base_datos_SOLO_EAI$Demarcacion[i],"-")[[1]][2]
-#     
-#     aa=BD_Estatus$Status_IEO_2021[which(Base_datos_SOLO_EAI$valid_name[i]==BD_Estatus$Especie
-#                                      &a==BD_Estatus$Demarcacion)]
-#     
-#     bb=BD_Estatus$Status_IEO_2021[which(Base_datos_SOLO_EAI$valid_name[i]==BD_Estatus$Especie
-#                                      &b==BD_Estatus$Demarcacion)]
-#       if (length(aa)==0){
-#         aa=NA
-#         }
-#       if (length(bb)==0){
-#         bb=NA
-#         }
-#     
-#     temp=paste(aa,bb,sep = "/")
-#     
-#     } else {
-#   
-#   temp=BD_Estatus$Status_IEO_2021[which(Base_datos_SOLO_EAI$valid_name[i]==BD_Estatus$Especie
-#                                         &Base_datos_SOLO_EAI$Demarcacion[i]==BD_Estatus$Demarcacion)]
-#     }
-#   if (length(temp)==0){
-#     temp=NA
-#   }
-#   Estatus_EAI=c(Estatus_EAI, temp)
-# }
-# Base_datos_SOLO_EAI$Estatus_EAI_IEO_2021=Estatus_EAI
-
 # Conocer si hay filas duplicadas y eliminarlas
-temp=which(duplicated(Base_datos_SOLO_EAI[,-which(colnames(Base_datos_SOLO_EAI)=="Archivo")]))
-if (length(temp)!=0) {
-  Base_datos_SOLO_EAI=Base_datos_SOLO_EAI[-temp,]
+a=which(duplicated(Base_datos_SOLO_EAI[,-which(colnames(Base_datos_SOLO_EAI)=="Archivo")]))
+if (length(a)!=0) {
+  Base_datos_SOLO_EAI=Base_datos_SOLO_EAI[-a,]
 }
+
+
+# if ((length(which(!Especies_EAI%in%nombres_SOLO_EAI))&
+#      length(which(!nombres_SOLO_EAI%in%Especies_EAI)))==0) {
+#   print("Los datos coinciden, todo OK, CONTINUAMOS")
+# } else {
+#   print("Los datos NO coinciden")
+#   a=invisible(readline(prompt="Desea parar el script?  si/no "))
+#   if (str_detect(a,regex("si|yes|s|y",ignore_case = T))) {
+#     stop("OK, script parado")
+#   }
+# }
+
 
 write.csv2(Base_datos_SOLO_EAI,
            file = paste("Base_datos_SOLO_EAI_",format(as.Date(Sys.Date(),format="%Y-%m-%d"),"%d%m%y"),".csv",sep=""),
            row.names = F,
            fileEncoding = "UTF-8")
 
-if ((length(which(!BD_Estatus$Specie%in%Base_datos_SOLO_EAI$Specie))&
-     length(which(!Base_datos_SOLO_EAI$Specie%in%BD_Estatus$Specie)))==0) {
-  print("Los datos coinciden, todo OK, CONTINUAMOS")
-} else {
-  print("Los datos NO coinciden")
-  a=invisible(readline(prompt="Desea parar el script?  si/no "))
-  if (str_detect(a,regex("si|yes|s|y",ignore_case = T))) {
-    stop("OK, script parado")
-  }
-}
 # # Función para buscar una especie ####
 # Buscar_Especie = function(x){
 #   temp=which(str_detect(Base_datos_SOLO_EAI$scientificname,as.character(x))|str_detect(Base_datos_SOLO_EAI$Specie,as.character(x)))
