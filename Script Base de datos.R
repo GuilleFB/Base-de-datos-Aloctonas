@@ -1,10 +1,11 @@
 # Creación de la base de datos de Aloctonas
 
-# Conectarme a Google Drive donde estan los archivos
+# Conecta a Google Drive donde estan los archivos
 library(googledrive)
 
 drive_auth()
-1
+1 # si tienes registrado en el ordenador tu email
+# 2 # si no tienes registrado tu email en el ordenador
 
 rm(list=ls(all=TRUE)) # Borrar todo los objetos
 invisible(capture.output(gc())) # Limpiar la memoria
@@ -40,9 +41,11 @@ library(jsonlite)
 library(rgbif)
 library(writexl)
 
-path="D:\\2021 - ALOCTONAS\\Base de datos a modificar\\Archivos"
-# path=choose.dir() # Elegir la carpeta Archivos de la base de datos de Aloctonas
-setwd(path) 
+# Seleccion de directorio Raiz
+path="D:\\2021 - ALOCTONAS\\Base de datos a modificar\\Archivos" # Elegir la carpeta que quiero para trabajar
+# path=choose.dir() # Elegir la carpeta mediante ventana auxiliar de Archivos de la base de datos de Aloctonas
+
+setwd(path)
 
 # # Carga archivos pesados
 # capaWGS84 <- readOGR(dsn = path, layer = "capaWGS84")
@@ -70,6 +73,7 @@ Archivos_primeros_registros=c("BD_primeros registros_CAN.xlsx",
 BD_Primeros=NULL
 demarcacion=c("CAN", "ESAL", "LEBA", "NOR", "SUD")
 
+# Bucle para crear la base de datos empezando por los primeros registros
 for (i in 1:length(Archivos_primeros_registros)) {
   
   # Descarga desde el drive el archivo que quiero
@@ -102,8 +106,7 @@ for (i in 1:length(Archivos_primeros_registros)) {
   temp$EAI="EAI5"
   temp$Coord_Originales=paste(temp$Longitude..E.,temp$Latitude..N.,sep="_")
   BD_Primeros=rbind(BD_Primeros,temp)
-  
-    
+
 }
 
 Abundancia=NA
@@ -145,8 +148,10 @@ Excel2=Excel[-c(1,2),]
 Excel2=data.frame(Excel2, row.names = c(1:length(Excel2[,1])))
 
 # 11, 23, 24, 26, 27 Columnas
+# "nombre.aceptado", "Lat.Y", "Long.X", "Lat.Y.1", "Long.X.1"
 
-temp=data.frame(Excel2[,c(11, 23, 24, 26, 27)])
+
+temp=data.frame(Excel2[,c("nombre.aceptado", "Lat.Y", "Long.X", "Lat.Y.1", "Long.X.1")])
 
 # Juntar coordenadas en dos unicas columnas combinando en las que hay y no hay
 temp$Lat.Y.1[which(is.na(temp$Lat.Y.1))]=temp$Lat.Y[which(is.na(temp$Lat.Y.1))]
@@ -183,7 +188,7 @@ Todo$Long.X.1[temp5]=1
 
 eliminar=which(Todo$Zona==0) # para saber que lineas tienen NA's
 if (length(eliminar)!=0) {
-  Todo=Todo[-eliminar,]# elimino las lineas que contenian NA's
+  Todo=Todo[-eliminar,] # elimino las lineas que contenian NA's
 }
 
 Todo$Suma=rowSums(Todo[,c(2,3,4,5)]) # sumo las lineas para saber cuales tenian datos de coordenadas en el Excel 2
@@ -199,58 +204,32 @@ tempXX=paste(Excel2$Zona[Todo$ID],
              #Excel2$Localidades.muestreadas[Todo$ID],
              ", España",sep = "")
 
-# Limpiar de caracteres extraños
+# Limpiar caracteres extraños
 tempXX=str_replace(tempXX, "\\s*\\([^\\)]+\\)?", "")
 tempXX=str_replace_all(tempXX, "[:digit:]", "")
 tempXX=str_replace_all(tempXX, "\\)", "")
 tempXX=str_replace_all(tempXX, "\\(", "")
 tempXX=stri_replace_all_charclass(tempXX, "\\p{WHITE_SPACE}", " ")
 tempXX=trimws(tempXX, "both", whitespace = "[ \\h\\v]")
-#View(data.frame(tempXX))
 
-#tempXX=Excel2$Zona[Todo$ID] # Sin añadir España
+# Sin añadir España a la Zona
+#tempXX=Excel2$Zona[Todo$ID] 
 
 # Coordenadas a partir de Nombres
-
 # Modificar si quiero el registro de coordenadas de arcgis
 # arcgis=geo(tempXX, method = "arcgis", 
            #api_options = list(iq_region = "eu"), full_results = TRUE)
+
+# Sino quiero que busque las coordenadas
 arcgis=NA
 
-# iq=NULL
-# for (i in 1:length(tempXX)) {
-#   iq_temp=geo(tempXX[i], method = "iq", 
-#               api_options = list(iq_region = "eu"), full_results = TRUE)
-#   iq=rbind(iq,iq_temp)
-#   Sys.sleep(5)
-# }
-# Geocoding con IQ, no es muy bueno.
-# iq=geo(tempXX, method = "iq",
-#        api_options = list(iq_region = "eu"), full_results = TRUE)
-# 
-# 
-# iq_2=geo(iq$address[which(is.na(iq$lat))], method = "iq",
-#        api_options = list(iq_region = "eu"), full_results = TRUE)
-# 
-# iq[which(is.na(iq$lat)),]=iq_2
-
-
-
-# plot(bing$long,bing$lat)
-# plot(arcgis$long,arcgis$lat)
-# plot(iq$long,iq$lat)
-
-#bing=data.frame(ID=Todo$ID,bing)
 arcgis=data.frame(ID=Todo$ID,arcgis)
-
-
-#mapview(arcgis[!is.na(arcgis$lat),], xcol = "long", ycol = "lat", crs = 4326, grid = F)
-#mapview(temp[!is.na(temp$Lat.Y.1),], xcol = "Long.X.1", ycol = "Lat.Y.1", crs = 4326, grid = F)
 
 # Modificar si quiero el registro de coordenadas de arcgis
 temp$Lat.Y.1[arcgis$ID]=arcgis$arcgis
 temp$Long.X.1[arcgis$ID]=arcgis$arcgis
 
+# Modificar si quiero el registro de coordenadas de arcgis
 # temp$Lat.Y.1[arcgis$ID]=arcgis$lat
 # temp$Long.X.1[arcgis$ID]=arcgis$long
 
@@ -299,11 +278,11 @@ tempBD=cbind(Specie,
 
 UTM_Mod=which(as.numeric(tempBD$Latitud)>100)
 
-#25830 ETRS89 // 32630 WGS84 UTM +proj=utm +zone=31 +datum=WGS84 +units=m +no_defs  // 4326 WGS84
-#WGS84+GRS80 / Mercator "+proj=merc +lon_0=0 +k=1 +x_0=0 +y_0=0 +datum=WGS84 +units=m +no_defs"
-#ED50 / UTM zone 30N "+proj=utm +zone=30 +ellps=intl +towgs84=-87,-98,-121,0,0,0,0 +units=m +no_defs"
-#ETRS89-extended / LAEA Europe "+proj=laea +lat_0=52 +lon_0=10 +x_0=4321000 +y_0=3210000 +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs"
-#ETRS89 / UTM zone 31N "+proj=utm +zone=31 +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs"
+# 25830 ETRS89 // 32630 WGS84 UTM +proj=utm +zone=31 +datum=WGS84 +units=m +no_defs  // 4326 WGS84
+# WGS84+GRS80 / Mercator "+proj=merc +lon_0=0 +k=1 +x_0=0 +y_0=0 +datum=WGS84 +units=m +no_defs"
+# ED50 / UTM zone 30N "+proj=utm +zone=30 +ellps=intl +towgs84=-87,-98,-121,0,0,0,0 +units=m +no_defs"
+# ETRS89-extended / LAEA Europe "+proj=laea +lat_0=52 +lon_0=10 +x_0=4321000 +y_0=3210000 +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs"
+# ETRS89 / UTM zone 31N "+proj=utm +zone=31 +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs"
 # capaWGS84_UTM_31N <- spTransform(demarcaciones, CRS("+proj=utm +zone=31 +datum=WGS84 +units=m +no_defs"))
 # capaWGS84_UTM_30N <- spTransform(demarcaciones, CRS("+proj=utm +zone=30 +datum=WGS84 +units=m +no_defs"))
 
@@ -321,11 +300,11 @@ for (i in 1:length(UTM_Mod)) {
     tempBD$Latitud[UTM_Mod[i]]=as.character(sfct[[1]][2])
     tempBD$Longitud[UTM_Mod[i]]=as.character(sfct[[1]][1])
   } else {
-  p1 = st_point(c(as.numeric(tempBD$Longitud[UTM_Mod[i]]),as.numeric(tempBD$Latitud[UTM_Mod[i]])))
-  sfc = st_sfc(p1, crs = "+proj=utm +zone=30 +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs")
-  sfct = st_transform(sfc, 4326)
-  tempBD$Latitud[UTM_Mod[i]]=as.character(sfct[[1]][2])
-  tempBD$Longitud[UTM_Mod[i]]=as.character(sfct[[1]][1])
+    p1 = st_point(c(as.numeric(tempBD$Longitud[UTM_Mod[i]]),as.numeric(tempBD$Latitud[UTM_Mod[i]])))
+    sfc = st_sfc(p1, crs = "+proj=utm +zone=30 +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs")
+    sfct = st_transform(sfc, 4326)
+    tempBD$Latitud[UTM_Mod[i]]=as.character(sfct[[1]][2])
+    tempBD$Longitud[UTM_Mod[i]]=as.character(sfct[[1]][1])
   }
 }
 
@@ -348,8 +327,8 @@ assign("Paginas",
 
 # Me carga el archivo y sus diferentes hojas descargado desde Drive en R
 for (i in 1:3) {
-assign(paste("Excel_",Paginas[i],sep=""),
-       data.frame(read_excel("Coincidencias_INFRAROK1120_Lista_Especies_Robert_Comas.xlsx", sheet = Paginas[i])))
+  assign(paste("Excel_",Paginas[i],sep=""),
+         data.frame(read_excel("Coincidencias_INFRAROK1120_Lista_Especies_Robert_Comas.xlsx", sheet = Paginas[i])))
 }
   #Excel=data.frame(Excel)[,c("Genero_especie","Latitud","Longitud")]
   
@@ -484,10 +463,13 @@ invisible(capture.output(gc()))
 
 # "Datos invasoras 2008-2020_EIJF.xlsx" #### 
 # EAI3
+# Descarga desde el drive el archivo que quiero
+drive_download("Datos invasoras 2008-2020_EIJF.xlsx", overwrite = T)
 
+# Me carga las paginas del Excel desde Drive en R
 Paginas=excel_sheets("Datos invasoras 2008-2020_EIJF.xlsx")
 
-Estaciones=data.frame(read_excel("Datos invasoras 2008-2020_EIJF.xlsx", sheet = Paginas[8]))
+Estaciones=data.frame(read_excel("Datos invasoras 2008-2020_EIJF.xlsx", sheet = "Estaciones"))
 
 Estaciones$Nom[which(Estaciones$Nom=="Na Ginalet")]="Na Guinalet"
 Estaciones$Nom[which(Estaciones$Nom=="Roca de sa Sals")]="Roca de Sa Sal"
@@ -746,6 +728,9 @@ invisible(capture.output(gc()))
 
 # EAI3
 #### Datum ETRS89
+drive_download("Exoticas FD EEI D_ESAL.xlsx", overwrite = T)
+drive_download("Exoticas FD EEI D_LEBA.xlsx", overwrite = T)
+drive_download("Exoticas FD EEI D_SUD.xlsx", overwrite = T)
 
 temp1=data.frame(read_excel("Exoticas FD EEI D_ESAL.xlsx", sheet = 1))
 temp2=data.frame(read_excel("Exoticas FD EEI D_LEBA.xlsx", sheet = 1))
@@ -916,25 +901,35 @@ rm(tempBD)
 invisible(capture.output(gc()))
 
 # Especies sueltas Bases de datos #### 
+# "Acrothamnion_preissii.xlsx"   "Asparagopsis_armata.xlsx"     "Asparagopsis_taxiformis.xlsx" "Callinectes_sapidus.xlsx"     "Caulerpa_cylindracea.xlsx"   
+# "Caulerpa_taxifolia.xlsx"      "Halimeda_incrassata.xlsx"     "Lophocladia_lallemandii.xlsx" "Percnon_gibbesi.xlsx"
 
-temp_path=paste(path,dir()[which(!str_detect(dir(),"\\."))],sep="\\") # Selecciona automaticamente la carpeta donde estan las tablas sueltas
+Especies_sueltas = c("Acrothamnion preissii.xlsx", "Asparagopsis armata.xlsx", "Asparagopsis taxiformis.xlsx", "Callinectes sapidus.xlsx",
+"Caulerpa cylindracea.xlsx", "Caulerpa taxifolia.xlsx", "Halimeda incrassata.xlsx", "Lophocladia lallemandii.xlsx", "Percnon gibbesi.xlsx", "Pinctada imbricata radiata", "Wormesleyella setacea.xlsx")
 
-Dir_Especies_tablas_datos=dir(temp_path) 
+for (i in 1:length(Especies_sueltas)) {
+  x.inv <- try(solve(drive_download(Especies_sueltas[i], overwrite = T)), silent=TRUE)
+  if (str_detect(x.inv[1],"does not identify at least one Drive file")){
+    print(paste("No existe el archivo",Especies_sueltas[i]))
+    next
+  } else {
+    a=drive_download(Especies_sueltas[i], overwrite = T)
+  }
+}
 
-Archivos_excel=Dir_Especies_tablas_datos[which(str_detect(Dir_Especies_tablas_datos, ".xlsx"))] # Selecciona solo los archivos *.xlsx
 
-Excel=read_excel(paste(temp_path, Archivos_excel[1], sep="\\"))
+Excel=read_excel(Especies_sueltas[1])
 
 Excel=data.frame(Excel)
 
 tempBD1=cbind(
-  Specie=gsub("_"," ",Archivos_excel[1]),
+  Specie=unlist(strsplit(Especies_sueltas[1],"\\."))[1],
   Latitud=Excel$Lat,
   Longitud=Excel$Long,
-  Year_First_record=Excel$Fecha,
+  Year_First_record=as.character(Excel$Fecha_registro),
   First_Reference=NA,
   Other_relevant_reference=Excel$Referencia,
-  Archivo=Archivos_excel[1],
+  Archivo=Especies_sueltas[1],
   Demarcacion=NA,
   EAI=NA,
   Coord_Originales=paste(Excel$Nom,Excel$Long,Excel$Lat,sep="_"),
@@ -942,24 +937,31 @@ tempBD1=cbind(
 )
 tempBD1=data.frame(tempBD1)
 
-tempBD1$Year_First_record[32]=as.character(as.Date(as.numeric(tempBD1$Year_First_record[32]), origin = "1899-12-30"))
+temp=which(tempBD1$Year_First_record>42000)
 
-tempBD1$Year_First_record[32]=as.character(format(as.Date(tempBD1$Year_First_record[32], format="%Y-%m-%d"),"%d/%m/%Y")) 
+tempBD1$Year_First_record[temp]=as.character(as.Date(as.numeric(tempBD1$Year_First_record[temp]), origin = "1899-12-30"))
+
+tempBD1$Year_First_record[temp]=as.character(format(as.Date(tempBD1$Year_First_record[temp], format="%Y-%m-%d"),"%d/%m/%Y")) 
+
+temp=which(is.na(tempBD1$Year_First_record))
+
+if (length(temp)!=0) {
+  tempBD1$Year_First_record[temp]=Excel$Fecha_añadida[temp]
+}
 
 
-Excel=read_excel(paste(temp_path,
-                       Archivos_excel[2], sep="\\"))
+Excel=read_excel(Especies_sueltas[2])
 
 Excel=data.frame(Excel)
 
 tempBD2=cbind(
-  Specie=gsub("_"," ",Archivos_excel[2]),
+  Specie=unlist(strsplit(Especies_sueltas[2],"\\."))[1],
   Latitud=Excel$Lat,
   Longitud=Excel$Long,
   Year_First_record=NA,
   First_Reference=NA,
   Other_relevant_reference=Excel$Reference,
-  Archivo=Archivos_excel[2],
+  Archivo=Especies_sueltas[2],
   Demarcacion=NA,
   EAI=NA,
   Coord_Originales=paste(Excel$local,Excel$zona,Excel$Provincia,Excel$CCAA,Excel$Long,Excel$Lat,sep="_"),
@@ -968,19 +970,18 @@ tempBD2=cbind(
 tempBD2=data.frame(tempBD2)
 
 
-Excel=read_excel(paste(temp_path,
-                       Archivos_excel[3], sep="\\"))
+Excel=read_excel(Especies_sueltas[3])
 
 Excel=data.frame(Excel)
 
 tempBD3=cbind(
-  Specie=gsub("_"," ",Archivos_excel[3]),
+  Specie=unlist(strsplit(Especies_sueltas[3],"\\."))[1],
   Latitud=Excel$Lat,
   Longitud=Excel$Long,
-  Year_First_record=Excel$Fecha,
+  Year_First_record=Excel$Fecha_registro,
   First_Reference=NA,
   Other_relevant_reference=Excel$Referencia,
-  Archivo=Archivos_excel[3],
+  Archivo=Especies_sueltas[3],
   Demarcacion=NA,
   EAI=NA,
   Coord_Originales=paste(Excel$Nom,Excel$Long,Excel$Lat,sep="_"),
@@ -988,33 +989,39 @@ tempBD3=cbind(
 )
 tempBD3=data.frame(tempBD3)
 
-temp=which(tempBD3$Year_First_record>40000)
+temp=which(tempBD3$Year_First_record>44000)
 
 tempBD3$Year_First_record[temp]=as.character(as.Date(as.numeric(tempBD3$Year_First_record[temp]), origin = "1899-12-30"))
 
 tempBD3$Year_First_record[temp]=as.character(format(as.Date(tempBD3$Year_First_record[temp], format="%Y-%m-%d"),"%d/%m/%Y"))
 
-Excel=read_excel(paste(temp_path,
-                       Archivos_excel[4], sep="\\"))
+temp=which(is.na(tempBD3$Year_First_record))
+
+if (length(temp)!=0) {
+  tempBD3$Year_First_record[temp]=Excel$Fecha_añadida[temp]
+}
+
+
+Excel=read_excel(Especies_sueltas[4])
 
 Excel=data.frame(Excel)
 
 tempBD4=cbind(
-  Specie=gsub("_"," ",Archivos_excel[4]),
+  Specie=unlist(strsplit(Especies_sueltas[4],"\\."))[1],
   Latitud=Excel$Lat,
   Longitud=Excel$Long,
-  Year_First_record=Excel$Fecha,
+  Year_First_record=Excel$Fecha_registro,
   First_Reference=NA,
   Other_relevant_reference=Excel$Referencia,
-  Archivo=Archivos_excel[4],
+  Archivo=Especies_sueltas[4],
   Demarcacion=NA,
   EAI=NA,
   Coord_Originales=paste(Excel$Lugar,Excel$Long,Excel$Lat,sep="_"),
-  Abundancia=NA
+  Abundancia=paste("N=",Excel$N, sep="")
 )
 tempBD4=data.frame(tempBD4)
 
-temp=which(!is.na(as.numeric(tempBD4$Year_First_record)))
+temp=which(tempBD3$Year_First_record>38000)
 
 tempBD4$Year_First_record[temp]=as.character(as.Date(as.numeric(tempBD4$Year_First_record[temp]), origin = "1899-12-30"))
 
@@ -1022,19 +1029,25 @@ tempBD4$Year_First_record[temp]=as.character(format(as.Date(tempBD4$Year_First_r
 
 tempBD4$Year_First_record[c(31,32,33)]=gsub(pattern = "Ago-",replacement = "",tempBD4$Year_First_record[c(31,32,33)])
 
-Excel=read_excel(paste(temp_path,
-                       Archivos_excel[5], sep="\\"))
+temp=which(is.na(tempBD4$Year_First_record))
+
+if (length(temp)!=0) {
+  tempBD4$Year_First_record[temp]=Excel$Fecha_añadida[temp]
+}
+
+
+Excel=read_excel(Especies_sueltas[5])
 
 Excel=data.frame(Excel)
 
 tempBD5=cbind(
-  Specie=gsub("_"," ",Archivos_excel[5]),
+  Specie=unlist(strsplit(Especies_sueltas[5],"\\."))[1],
   Latitud=Excel$Lat,
   Longitud=Excel$Long,
-  Year_First_record=Excel$Fecha,
+  Year_First_record=Excel$Fecha_registro,
   First_Reference=NA,
   Other_relevant_reference=Excel$Referencia,
-  Archivo=Archivos_excel[5],
+  Archivo=Especies_sueltas[5],
   Demarcacion=NA,
   EAI=NA,
   Coord_Originales=paste(Excel$Lugar,Excel$Long,Excel$Lat,sep="_"),
@@ -1048,20 +1061,25 @@ tempBD5$Year_First_record[temp]=as.character(as.Date(as.numeric(tempBD5$Year_Fir
 
 tempBD5$Year_First_record[temp]=as.character(format(as.Date(tempBD5$Year_First_record[temp], format="%Y-%m-%d"),"%d/%m/%Y")) 
 
+temp=which(is.na(tempBD5$Year_First_record))
 
-Excel=read_excel(paste(temp_path,
-                       Archivos_excel[6], sep="\\"))
+if (length(temp)!=0) {
+  tempBD5$Year_First_record[temp]=Excel$Fecha_añadida[temp]
+}
+
+
+Excel=read_excel(Especies_sueltas[6])
 
 Excel=data.frame(Excel)
 
 tempBD6=cbind(
-  Specie=gsub("_"," ",Archivos_excel[6]),
+  Specie=unlist(strsplit(Especies_sueltas[6],"\\."))[1],
   Latitud=Excel$Lat,
   Longitud=Excel$Long,
-  Year_First_record=Excel$Fecha,
+  Year_First_record=Excel$Fecha_registro,
   First_Reference=NA,
   Other_relevant_reference=Excel$Referencia,
-  Archivo=Archivos_excel[6],
+  Archivo=Especies_sueltas[6],
   Demarcacion=NA,
   EAI=NA,
   Coord_Originales=paste(Excel$Nom,Excel$Long,Excel$Lat,sep="_"),
@@ -1070,19 +1088,18 @@ tempBD6=cbind(
 tempBD6=data.frame(tempBD6)
 
 
-Excel=read_excel(paste(temp_path,
-                       Archivos_excel[7], sep="\\"))
+Excel=read_excel(Especies_sueltas[7])
 
 Excel=data.frame(Excel)
 
 tempBD7=cbind(
-  Specie=gsub("_"," ",Archivos_excel[7]),
+  Specie=unlist(strsplit(Especies_sueltas[7],"\\."))[1],
   Latitud=Excel$Lat,
   Longitud=Excel$Long,
-  Year_First_record=Excel$Fecha,
+  Year_First_record=Excel$Fecha_registro,
   First_Reference=NA,
   Other_relevant_reference=Excel$Referencia,
-  Archivo=Archivos_excel[7],
+  Archivo=Especies_sueltas[7],
   Demarcacion=NA,
   EAI=NA,
   Coord_Originales=paste(Excel$Lugar,Excel$Long,Excel$Lat,sep="_"),
@@ -1090,26 +1107,25 @@ tempBD7=cbind(
 )
 tempBD7=data.frame(tempBD7)
 
-temp=which(tempBD7$Year_First_record>30000)
+temp=which(tempBD7$Year_First_record>38000)
 
 tempBD7$Year_First_record[temp]=as.character(as.Date(as.numeric(tempBD7$Year_First_record[temp]), origin = "1899-12-30"))
 
 tempBD7$Year_First_record[temp]=as.character(format(as.Date(tempBD7$Year_First_record[temp], format="%Y-%m-%d"),"%d/%m/%Y")) 
 
 
-Excel=read_excel(paste(temp_path,
-                       Archivos_excel[8], sep="\\"))
+Excel=read_excel(Especies_sueltas[8])
 
 Excel=data.frame(Excel)
 
 tempBD8=cbind(
-  Specie=gsub("_"," ",Archivos_excel[8]),
+  Specie=unlist(strsplit(Especies_sueltas[8],"\\."))[1],
   Latitud=Excel$Lat,
   Longitud=Excel$Long,
-  Year_First_record=Excel$Fecha,
+  Year_First_record=Excel$Fecha_registro,
   First_Reference=NA,
   Other_relevant_reference=Excel$Referencia,
-  Archivo=Archivos_excel[8],
+  Archivo=Especies_sueltas[8],
   Demarcacion=NA,
   EAI=NA,
   Coord_Originales=paste(Excel$Lugar,Excel$Long,Excel$Lat,sep="_"),
@@ -1117,26 +1133,32 @@ tempBD8=cbind(
 )
 tempBD8=data.frame(tempBD8)
 
-temp=which(tempBD8$Year_First_record>39000)
+temp=which(tempBD8$Year_First_record>38000)
 
 tempBD8$Year_First_record[temp]=as.character(as.Date(as.numeric(tempBD8$Year_First_record[temp]), origin = "1899-12-30"))
 
 tempBD8$Year_First_record[temp]=as.character(format(as.Date(tempBD8$Year_First_record[temp], format="%Y-%m-%d"),"%d/%m/%Y")) 
 
+temp=which(is.na(tempBD8$Year_First_record))
 
-Excel=read_excel(paste(temp_path,
-                       Archivos_excel[9], sep="\\"))
+if (length(temp)!=0) {
+  tempBD8$Year_First_record[temp]=Excel$Fecha_añadida[temp]
+}
+
+
+
+Excel=read_excel(Especies_sueltas[9])
 
 Excel=data.frame(Excel)
 
 tempBD9=cbind(
-  Specie=gsub("_"," ",Archivos_excel[9]),
+  Specie=unlist(strsplit(Especies_sueltas[9],"\\."))[1],
   Latitud=Excel$Lat,
   Longitud=Excel$Long,
-  Year_First_record=Excel$Fecha,
+  Year_First_record=Excel$Fecha_registro,
   First_Reference=NA,
   Other_relevant_reference=Excel$Referencia,
-  Archivo=Archivos_excel[9],
+  Archivo=Especies_sueltas[9],
   Demarcacion=NA,
   EAI=NA,
   Coord_Originales=paste(Excel$Lugar,Excel$Long,Excel$Lat,sep="_"),
@@ -1144,7 +1166,7 @@ tempBD9=cbind(
 )
 tempBD9=data.frame(tempBD9)
 
-temp=which(!is.na(as.numeric(tempBD9$Year_First_record))&as.numeric(tempBD9$Year_First_record)>2020)
+temp=which(as.numeric(tempBD9$Year_First_record)>36000)
 
 tempBD9$Year_First_record[temp]=as.character(as.Date(as.numeric(tempBD9$Year_First_record[temp]), origin = "1899-12-30"))
 
@@ -1152,17 +1174,73 @@ tempBD9$Year_First_record[temp]=as.character(format(as.Date(tempBD9$Year_First_r
 
 tempBD9$Year_First_record[c(55:59)]=gsub(pattern = "Ago-",replacement = "",tempBD9$Year_First_record[c(55:59)])
 
-tempBD=rbind(tempBD1,tempBD2,tempBD3,tempBD4,tempBD5,tempBD6,tempBD7,tempBD8,tempBD9)
+
+
+Excel=read_excel(paste(Especies_sueltas[10],".xlsx", sep=""))
+
+Excel=data.frame(Excel)
+
+tempBD10=cbind(
+  Specie=unlist(strsplit(Especies_sueltas[10],"\\."))[1],
+  Latitud=Excel$Lat,
+  Longitud=Excel$Long,
+  Year_First_record=as.character(Excel$Fecha_registro),
+  First_Reference=NA,
+  Other_relevant_reference=Excel$Referencia,
+  Archivo=Especies_sueltas[10],
+  Demarcacion=NA,
+  EAI=NA,
+  Coord_Originales=paste(Excel$Lugar,Excel$Long,Excel$Lat,sep="_"),
+  Abundancia=paste("N=",Excel$N, sep="")
+)
+tempBD10=data.frame(tempBD10)
+
+
+Excel=read_excel(Especies_sueltas[11])
+
+Excel=data.frame(Excel)
+
+tempBD11=cbind(
+  Specie=unlist(strsplit(Especies_sueltas[11],"\\."))[1],
+  Latitud=Excel$Lat,
+  Longitud=Excel$Long,
+  Year_First_record=as.character(Excel$Fecha_registro),
+  First_Reference=NA,
+  Other_relevant_reference=Excel$Referencia,
+  Archivo=Especies_sueltas[11],
+  Demarcacion=NA,
+  EAI=NA,
+  Coord_Originales=paste(Excel$Lugar,Excel$Long,Excel$Lat,sep="_"),
+  Abundancia=NA
+)
+tempBD11=data.frame(tempBD11)
+
+temp=which(tempBD11$Year_First_record>34000)
+
+tempBD11$Year_First_record[temp]=as.character(as.Date(as.numeric(tempBD11$Year_First_record[temp]), origin = "1899-12-30"))
+
+tempBD11$Year_First_record[temp]=as.character(format(as.Date(tempBD11$Year_First_record[temp], format="%Y-%m-%d"),"%d/%m/%Y"))
+
+temp=which(is.na(tempBD11$Year_First_record))
+
+if (length(temp)!=0) {
+  tempBD11$Year_First_record[temp]=Excel$Fecha_añadida[temp]  
+}
+
+# Creo el Excel general con todas las especies sueltas
+tempBD=rbind(tempBD1,tempBD2,tempBD3,tempBD4,tempBD5,
+             tempBD6,tempBD7,tempBD8,tempBD9,tempBD10,
+             tempBD11)
 
 # Eliminar la extension .xlsx de los nombres de las especies
-tempBD$Specie=gsub(".xlsx", "", tempBD$Specie)
+# tempBD$Specie=gsub(".xlsx", "", tempBD$Specie)
 
 # Añadir las demarcaciones en la tabla
 # plot(tempBD$Longitud,tempBD$Latitud) #plot para visualizarlas
 
 tempBD$Demarcacion[which(tempBD$Longitud>0)]="LEBA"
 
-tempBD$Demarcacion[which(tempBD$Longitud<0&tempBD$Latitud>41)]="NOR"
+tempBD$Demarcacion[which(tempBD$Longitud<0 & tempBD$Latitud>41)]="NOR"
   
 tempBD$Demarcacion[which(tempBD$Latitud<38)]="ESAL"
 
@@ -1171,7 +1249,9 @@ tempBD$Specie=trimws(tempBD$Specie, "both", whitespace = "[ \\h\\v]")
 
 BD_Primeros=rbind(BD_Primeros,tempBD)
 
-rm(tempBD,tempBD1,tempBD2,tempBD3,tempBD4,tempBD5,tempBD6,tempBD7,tempBD8,tempBD9)
+rm(tempBD1,tempBD2,tempBD3,tempBD4,tempBD5,
+   tempBD6,tempBD7,tempBD8,tempBD9,tempBD10,
+   tempBD11)
 invisible(capture.output(gc()))
 
 # Correccion de coordenadas sin formato fijo
@@ -1497,56 +1577,57 @@ error.nombres=NULL
 # Para saber en cual falla
 if (str_detect(x.inv[1],"subscript out of bounds")){
  # buscar la especies y las que no coincide se las salta
-print("Aparecio un error en la forma rapida, comienzo la forma mas lenta de buscar en WORMS")
-
-buscado.by.name=wormsbynames(Especies.buscar$Species_unique, marine_only = F)
-
-Species_unique_data=data.frame(Especies.buscar, buscado.by.name)
-
-NA.s=which(is.na(Species_unique_data$AphiaID))
-
-  if (length(NA.s)!=0) {
-    for (i in 1:length(NA.s)) {
-      x.inv <- try(solve(wormsbymatchnames(Species_unique_data[NA.s[i],"Species_unique"], marine_only = F)), silent=TRUE)
-      if (str_detect(x.inv[1],"== 200 is not TRUE")){
-        error.nombres=c(error.nombres, Species_unique_data[NA.s[i],"Species_unique"])
+  print("Aparecio un error en la forma rapida, comienzo la forma mas lenta de buscar en WORMS")
+  
+  buscado.by.name=wormsbynames(Especies.buscar$Species_unique, marine_only = F)
+  
+  Species_unique_data=data.frame(Especies.buscar, buscado.by.name)
+  
+  NA.s=which(is.na(Species_unique_data$AphiaID))
+  
+    if (length(NA.s)!=0) {
+      for (i in 1:length(NA.s)) {
+        x.inv <- try(solve(wormsbymatchnames(Species_unique_data[NA.s[i],"Species_unique"], marine_only = F)), silent=TRUE)
+        if (str_detect(x.inv[1],"== 200 is not TRUE")){
+          error.nombres=c(error.nombres, Species_unique_data[NA.s[i],"Species_unique"])
+          print(paste(round(i/length(NA.s)*100,2),"% -->",paste(i,length(NA.s), sep= " de "),sep = " "))
+          next
+        } else {
+          Species_unique_data[NA.s[i],3:dim(Species_unique_data)[2]]=wormsbymatchnames(Species_unique_data[NA.s[i],"Species_unique"], marine_only = F) # busca las que no coinciden exactamente  
+        }
         print(paste(round(i/length(NA.s)*100,2),"% -->",paste(i,length(NA.s), sep= " de "),sep = " "))
-        next
-      } else {
-        Species_unique_data[NA.s[i],3:dim(Species_unique_data)[2]]=wormsbymatchnames(Species_unique_data[NA.s[i],"Species_unique"], marine_only = F) # busca las que no coinciden exactamente  
       }
-      print(paste(round(i/length(NA.s)*100,2),"% -->",paste(i,length(NA.s), sep= " de "),sep = " "))
-    }
-    no.buscar=c("Haplosporidium pinnae", "Mona blanca", "Myxobolus portucalensis",
-                "Anemona negra", "Anemona", "Ascidia puntos rojos/naranjas",
-                "Esponja blanca", "Hermitano")
-    
-    nombres.modificar=error.nombres[-which(error.nombres%in%no.buscar)]
-    
-    if (length(nombres.modificar%in%"Wurdermannia magna")!=0) {
-      Species_unique_data[which(Species_unique_data$Species_unique=="Wurdermannia magna"),"Species_unique"]="Wurdemannia" #"Wurdermannia magna"
-      Species_unique_data[which(Species_unique_data$Species_unique=="Wurdemannia"),3:dim(Species_unique_data)[2]]=wormsbymatchnames(Species_unique_data[which(Species_unique_data$Species_unique=="Wurdemannia"),"Species_unique"], marine_only = F)
-      NA.s=which(is.na(Species_unique_data$AphiaID))
-      error.nombres=NULL
-      error.nombres=c(error.nombres, Species_unique_data[NA.s,"Species_unique"])
+      no.buscar=c("Haplosporidium pinnae", "Mona blanca", "Myxobolus portucalensis",
+                  "Anemona negra", "Anemona", "Ascidia puntos rojos/naranjas",
+                  "Esponja blanca", "Hermitano")
+      
       nombres.modificar=error.nombres[-which(error.nombres%in%no.buscar)]
-    } else {
-      beep(9)
-      stop("Nombres no coinciden")
+      
+      if (length(nombres.modificar%in%"Wurdermannia magna")!=0) {
+        Species_unique_data[which(Species_unique_data$Species_unique=="Wurdermannia magna"),"Species_unique"]="Wurdemannia" #"Wurdermannia magna"
+        Species_unique_data[which(Species_unique_data$Species_unique=="Wurdemannia"),3:dim(Species_unique_data)[2]]=wormsbymatchnames(Species_unique_data[which(Species_unique_data$Species_unique=="Wurdemannia"),"Species_unique"], marine_only = F)
+        NA.s=which(is.na(Species_unique_data$AphiaID))
+        error.nombres=NULL
+        error.nombres=c(error.nombres, Species_unique_data[NA.s,"Species_unique"])
+        nombres.modificar=error.nombres[-which(error.nombres%in%no.buscar)]
+      } else {
+        beep(9)
+        stop("Nombres no coinciden")
+      }
+      if (length(nombres.modificar)>0) {
+        beep(8)
+        stop("Hay nombres que no detecta WORMS y hay que modificar")
+      }
+      a=invisible(readline(prompt="TODO VA BIEN. Desea continuar con el script? si/no "))
+      if (str_detect(a,regex("si|yes|s|y",ignore_case = T))) {
+        stop("OK, continuamos")
+      }
     }
-    if (length(nombres.modificar)>0) {
-      beep(8)
-      stop("Hay nombres que no detecta WORMS y hay que modificar")
-    }
-    a=invisible(readline(prompt="TODO VA BIEN. Desea continuar con el script? si/no "))
-    if (str_detect(a,regex("si|yes|s|y",ignore_case = T))) {
-      stop("OK, continuamos")
-    }
-  }
 } else {
   buscado.by.name=wormsbymatchnames(Especies.buscar$Species_unique, marine_only = F)
   Species_unique_data=data.frame(Especies.buscar, buscado.by.name)
 }
+
 # Antiguo ############
 # Cambiar los nombres por lo que si detecta el WORMS
 # Species_unique[which(Species_unique$Species_unique=="Cladocarpus sigma folini"),"Species_unique"]="Cladocarpus sigma var. folini"
