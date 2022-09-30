@@ -10,6 +10,7 @@ drive_auth()
 rm(list=ls(all=TRUE)) # Borrar todo los objetos
 invisible(capture.output(gc())) # Limpiar la memoria
 
+library(parallel)
 library(readxl)
 library(RColorBrewer)
 library(readr)
@@ -41,13 +42,13 @@ library(jsonlite)
 library(rgbif)
 library(writexl)
 
-# Seleccion de directorio Raiz
+# Seleccion de directorio Raiz ####
 path="D:\\2021 - ALOCTONAS\\Base de datos a modificar\\Archivos" # Elegir la carpeta que quiero para trabajar
 # path=choose.dir() # Elegir la carpeta mediante ventana auxiliar de Archivos de la base de datos de Aloctonas
 
 setwd(path)
 
-# # Carga archivos pesados
+# Carga archivos pesados ####
 # capaWGS84 <- readOGR(dsn = path, layer = "capaWGS84")
 # capaWGS84_10 <- readOGR(dsn = path, layer = "capaWGS84_10")
 # save(capaWGS84, capaWGS84_10, file = "capas_base_de_datos.RData")
@@ -111,7 +112,7 @@ for (i in 1:length(Archivos_primeros_registros)) {
 
 Abundancia=NA
 
-BD_Primeros=cbind(BD_Primeros,Abundancia)
+BD_Primeros=cbind(BD_Primeros, Abundancia)
 
 colnames(BD_Primeros)=c("Specie","Latitud","Longitud","Year_First_record","First_Reference","Other_relevant_reference","Archivo","Demarcacion","EAI","Coord_Originales","Abundancia")
 
@@ -119,7 +120,6 @@ BD_Primeros$Specie=trimws(BD_Primeros$Specie, "both", whitespace = "[ \\h\\v]") 
 
 rm(Excel2)
 invisible(capture.output(gc()))
-
 
 # "BD_registros completos_todas demarcaciones.xlsx" ####
 # EAI5
@@ -1579,6 +1579,11 @@ if (str_detect(x.inv[1],"subscript out of bounds")){
  # buscar la especies y las que no coincide se las salta
   print("Aparecio un error en la forma rapida, comienzo la forma mas lenta de buscar en WORMS")
   
+  a=invisible(readline(prompt="Desea continuar con el script? si/no "))
+  if (str_detect(a,regex("no|n",ignore_case = T))) {
+    stop("OK, Paramos")
+  }
+  
   buscado.by.name=wormsbynames(Especies.buscar$Species_unique, marine_only = F)
   
   Species_unique_data=data.frame(Especies.buscar, buscado.by.name)
@@ -1737,17 +1742,6 @@ if (length(a)!=0) {
   BD_Primeros$scientificname[a]=BD_Primeros$Specie[a]  
 }
 
-
-# "Specie_raw"               "Latitud"                  "Longitud"                 "Date"       
-# "First_Reference"          "Other_relevant_reference" "Archivo"                  "Demarcacion"             
-# "EAI"                      "Abundancia"               "Specie_BD"                "AphiaID"                 
-# "url"                      "Scientific_name"          "authority"                "status"                  
-# "unacceptreason"           "taxonRankID"              "rank"                     "valid_AphiaID"           
-# "valid_name"               "valid_authority"          "parentNameUsageID"        "kingdom"                 
-# "phylum"                   "class"                    "order"                    "family"                  
-# "genus"                    "citation"                 "lsid"                     "Marine"                
-# "Brackish"                 "Freshwater"               "Terrestrial"              "Extinct"               
-# "match_type"               "modified"
 
 # Homogeneizar todas las Demarcaciones ####
 a=gsub("NA", "",BD_Primeros$Demarcacion)
@@ -2063,6 +2057,236 @@ write.csv2(Todo_EAI,
            fileEncoding = "UTF-8")
 
 
+# RedPromar #####
+
+r <- read_html("https://redpromar.org/sightings/markers?region_id=3")
+
+todo=html_text(r)
+
+prueba=strsplit(todo,"\\]\\,\\[")
+prueba=gsub(x = prueba[[1]], pattern = "[\"]", "")
+prueba[[1]][1]=gsub(x = prueba[[1]][1], pattern = "[var sightings = [[]", "")
+prueba[length(prueba)]=gsub(x = prueba[length(prueba)], pattern = "]];", "")
+
+temp=strsplit(prueba,split = ",")
+
+df <- data.frame(matrix(unlist(temp), nrow=length(temp), byrow=TRUE)) #convertir lista larga en data frame
+
+# Convertir columnas de caracteres en numeros
+for (i in 1:dim(df)[2]) {
+  df[,i]=as.numeric(df[,i])
+}
+
+colnames(df)=c("Latitud","Longitud","TaxonID","Avistamiento","Especie")
+
+df$Fecha=NA
+
+#avistamiento=sort(unique(df$Avistamiento))
+
+Funcion_RedPromar = function(x){
+  require(httr)
+  require(rvest)
+  require(stringr)
+  a <- read_html(x)
+
+  nombre <- trimws(gsub("\n", "",html_text(html_nodes(a,'.italic')[1])), "both", whitespace = "[ \\h\\v]")
+
+  if (length(nombre)==0){
+    nombre = NA
+  }
+  fecha1 <- trimws(gsub("\n", "",html_text(html_nodes(a,'.font-bold'))), "both", whitespace = "[ \\h\\v]")
+  fecha2 <- which(str_detect(fecha1,"Avistado"))
+  fecha = fecha1[fecha2]
+
+  if (length(fecha)==0) {
+    fecha = NA
+  }
+  nombre_fecha=c(nombre,fecha)
+  return(nombre_fecha)
+}
+
+Webs=data.frame(Webs=paste("https://redpromar.org/sightings/",df$Avistamiento,sep=""))
+
+########### Paralelizando ###########
+ncl <- detectCores()
+
+cl <- makeCluster(ncl-1)
+
+clusterExport(cl,"Funcion_RedPromar")
+
+print("Tarda mucho tiempo ~1 hora!!!!!!!!!!")
+resultados=parApply(cl=cl, Webs, 1, Funcion_RedPromar) # Paralelizacion
+
+stopCluster(cl=cl)
+
+df$Especie=resultados[1,]
+df$Fecha=resultados[2,]
+
+temp=which(BD_Primeros$Demarcacion=="CAN" & BD_Primeros$Archivo=="BD_primeros registros_CAN.xlsx")
+
+nombres=unique(c(BD_Primeros$Specie[temp],
+                 BD_Primeros$scientificname[temp],
+                 BD_Primeros$valid_name[temp]))
+
+temp=which(df$Especie%in%nombres)
+
+if (length(temp)!=0) {
+  df=df[temp,]  
+}
+
+
+# # Antiguo, mucho tiempo, mejor usar la paralelizacion
+#
+# for (i in 1:length(avistamiento)) {
+#   temp=paste("https://redpromar.org/sightings/",avistamiento[i],sep="")
+#   if (status_code(GET(temp))!=200){ # si el status de una pagina no es 200 salta a la siguiente. El status 200 significa que está online
+#     print(i/length(avistamiento)*100)
+#     next
+#   } else {
+#     a <- read_html(temp)
+#     
+#     nombre <- trimws(gsub("\n", "",html_text(html_nodes(a,'.italic')[1])), "both", whitespace = "[ \\h\\v]")
+#     
+#     if (length(nombre)==0){
+#       df$Especie[which(df$Avistamiento==avistamiento[i])] = NA
+#     } else {
+#       df$Especie[which(df$Avistamiento==avistamiento[i])] = nombre
+#     }
+#     
+#     fecha <- trimws(gsub("\n", "",html_text(html_nodes(a,'.font-bold'))), "both", whitespace = "[ \\h\\v]")[which(str_detect(trimws(gsub("\n", "",html_text(html_nodes(a,'.font-bold'))), "both", whitespace = "[ \\h\\v]"),"Avistado"))]
+#     
+#     if (length(fecha)==0) {
+#       df$Fecha[which(df$Avistamiento==avistamiento[i])] = NA 
+#     } else {
+#       df$Fecha[which(df$Avistamiento==avistamiento[i])] = fecha
+#     }
+# 
+#     print(i/length(avistamiento)*100)
+#   }
+# }
+
+redpromar=matrix(NA, nrow = length(df$Avistamiento), ncol = length(colnames(BD_Primeros)))
+colnames(redpromar)=colnames(BD_Primeros)
+redpromar=as.data.frame(redpromar)
+
+redpromar$Year_First_record=as.Date(gsub(pattern ="Avistado el ",replacement = "", x= df$Fecha), format = "%d-%m-%Y")
+redpromar$Specie=df$Especie
+redpromar$Latitud=df$Latitud
+redpromar$Longitud=df$Longitud
+redpromar$scientificname=NA
+redpromar$Archivo="Web_RedPromar"
+redpromar$Coord_Originales=paste(df$Latitud, df$Longitud, sep="_")
+redpromar$Other_relevant_reference=paste("Avistamiento_numero", df$Avistamiento,sep="_")
+redpromar$Demarcacion="CAN"
+redpromar$kingdom=NA
+redpromar$phylum=NA
+redpromar$class=NA
+redpromar$order=NA
+redpromar$family=NA
+redpromar$genus=NA
+redpromar$EAI="EAI5"
+
+redpromar$Specie=stri_replace_all_charclass(redpromar$Specie, "\\p{WHITE_SPACE}", " ")
+redpromar$Specie=trimws(redpromar$Specie, "both", whitespace = "[ \\h\\v]")
+
+nombres=unique(redpromar$Specie)
+
+temp=which(nombres=="")
+if (length(temp)!=0) {
+  nombres=nombres[-temp]
+}
+
+buscar_worms=function(nombres){
+  library(worms)
+  library(stringr)
+  library(Matrix)
+  x.inv <- try(solve(wormsbymatchnames(nombres, marine_only = F)), silent=TRUE)
+  if (str_detect(x.inv[1],"== 200 is not TRUE")){
+    return(nombres)
+  } else {
+    return(wormsbymatchnames(nombres, marine_only = F))
+  }
+}
+
+nombres=data.frame(nombres)
+
+prueba=NULL
+prueba=wormsbymatchnames(nombres[,1], marine_only = F)
+
+if (length(prueba)==0){
+  # Paralelizacion ####
+  ncl <- detectCores()
+  
+  cl <- makeCluster(ncl-1)
+  
+  clusterExport(cl,"buscar_worms")
+  
+  resultados=parApply(cl=cl, nombres, 1, buscar_worms)
+  
+  stopCluster(cl=cl)
+  
+  temp=NULL
+  for (i in resultados) {
+    temp=c(temp,typeof(i))
+    temp1=which(temp=="character")
+  }
+  
+  # # Antiguo, mucho tiempo, mejor usar la paralelizacion
+  # # Directo si todo va bien
+  # x.inv <- try(solve(wormsbymatchnames(nombres, marine_only = F)), silent=TRUE)
+  # 
+  # temp1=NULL
+  # error.nombres=NULL
+  # # Para saber en cual falla
+  # if (str_detect(x.inv[1],"subscript out of bounds")){
+  #   for (i in 1:length(nombres)) {
+  #     x.inv <- try(solve(wormsbymatchnames(nombres[i], marine_only = F)), silent=TRUE)
+  #     if (str_detect(x.inv[1],"== 200 is not TRUE")){
+  #       error.nombres=c(error.nombres, nombres[i])
+  #       print(paste(round(i/length(nombres)*100,2),"% -->",paste(i,length(nombres), sep= " de "),sep = " ")) # control de evolucion
+  #       next
+  #     } else {
+  #       temp2=wormsbymatchnames(nombres[i], marine_only = F)
+  #       temp1=rbind(temp1,temp2)
+  #       print(paste(round(i/length(nombres)*100,2),"% -->",paste(i,length(nombres), sep= " de "),sep = " ")) # control de evolucion
+  #     }
+  #   }
+  # } else {
+  #   temp=wormsbymatchnames(stri_trans_general(nombres,"Latin-ASCII") #elimina el espacio \\s+ por el normal y transforma en ASCII (elimina acentos o letras raras)
+  #                          ,marine_only = F)
+  # }
+  
+  if (length(temp1)!=0) {
+    print("RedPromar FALLA tiene nombres erroneos")
+    a=invisible(readline(prompt="RedPromar FALLA tiene nombres erroneos. Desea parar el script?  si/no "))
+    if (str_detect(a,regex("si|yes|s|y",ignore_case = T))) {
+      print("Estos son los nombres erroneos", nombres[temp1], sep = " = ")
+      stop("OK, script parado")
+    }
+  }
+  
+  prueba <- data.frame(matrix(unlist(resultados), nrow=length(resultados), byrow=TRUE))
+  
+  colnames(prueba)=colnames(resultados[[1]])
+}
+
+columnas=which(colnames(redpromar)%in%colnames(prueba))
+
+temp=data.frame(nombres,prueba)
+
+for (i in 1:length(temp[,1])) {
+  temp1=which(redpromar$Specie==temp[i,1])
+  redpromar[temp1,columnas]=temp[i,-1]
+}
+
+BD_Primeros=rbind(BD_Primeros, redpromar)
+
+write.csv2(redpromar,
+           file = paste("BD_RedPromar_",format(as.Date(Sys.Date(),format="%Y-%m-%d"),"%d%m%y"),".csv",sep=""),
+           row.names = F,
+           fileEncoding = "UTF-8")
+
+
 # OBSERVADORES DEL MAR #####
 
 r <- read_html('https://www.observadoresdelmar.es/Map/GetMapMarkers?InitProjectId=')
@@ -2098,28 +2322,79 @@ data$Nombre=NA
 data$Fecha=NA
 data$Comentarios=NA
 data$Depth=NA
-###################### WARNING TARDA MUCHO TIEMPO
-for (i in 1:length(data$IdObervacio)) {
-  temp=paste(paste("https://www.observadoresdelmar.es/Map/GetObservacioInfo?IDObserv=",data[i,1],"&IdProject=",data[i,2],sep=""))
-  
+
+Funcion_Observadoresdelmar = function(temp){
   json_file=jsonlite::fromJSON(temp)
   
   if(!is.null(json_file$Especie)){
-    data$Nombre[i]=json_file$Especie
+    Nombre=json_file$Especie
+  } else {
+    Nombre=NA
   }
   if(!is.null(json_file$observacio_data)){
-    data$Fecha[i]=json_file$observacio_data
+    Fecha=json_file$observacio_data
+  } else {
+    Fecha=NA
   }
   if(!is.null(json_file$NombreProyecto)){
-    data$ProjectClassification[i]=json_file$NombreProyecto
+    ProjectClassification=json_file$NombreProyecto
+  } else {
+    ProjectClassification=NA
   }
   if(!is.null(json_file$ObservacioComentaris)){
-    data$Depth[i]=data$Comentarios[i]=json_file$ObservacioComentaris
+    Comentarios=json_file$ObservacioComentaris
+  } else {
+    Comentarios=NA
   }
   if(!is.null(json_file$ObservacioFondaria)){
-    data$Depth[i]=json_file$ObservacioFondaria
+    Depth=json_file$ObservacioFondaria
+  } else {
+    Depth=NA
   }
+  return(c(Nombre, Fecha, ProjectClassification, Comentarios, Depth))
 }
+
+########### Paralelizando ###########
+Webs = data.frame(paste(paste("https://www.observadoresdelmar.es/Map/GetObservacioInfo?IDObserv=",data[,1],"&IdProject=",data[,2],sep="")))
+
+ncl <- detectCores()
+
+cl <- makeCluster(ncl-1)
+
+clusterExport(cl,"Funcion_Observadoresdelmar")
+
+resultados=parApply(cl=cl, Webs, 1, Funcion_Observadoresdelmar) # Paralelizacion
+
+stopCluster(cl=cl)
+
+data$Nombre=resultados[1,]
+data$Fecha=resultados[2,]
+data$ProjectClassification=resultados[3,]
+data$Comentarios=resultados[4,]
+data$Depth=resultados[5,]
+
+# Antiguo, mucho tiempo, mejor usar la paralelizacion
+# for (i in 1:length(data$IdObervacio)) {
+#   temp=paste(paste("https://www.observadoresdelmar.es/Map/GetObservacioInfo?IDObserv=",data[i,1],"&IdProject=",data[i,2],sep=""))
+#   
+#   json_file=jsonlite::fromJSON(temp)
+#   
+#   if(!is.null(json_file$Especie)){
+#     data$Nombre[i]=json_file$Especie
+#   }
+#   if(!is.null(json_file$observacio_data)){
+#     data$Fecha[i]=json_file$observacio_data
+#   }
+#   if(!is.null(json_file$NombreProyecto)){
+#     data$ProjectClassification[i]=json_file$NombreProyecto
+#   }
+#   if(!is.null(json_file$ObservacioComentaris)){
+#     data$Comentarios[i]=json_file$ObservacioComentaris
+#   }
+#   if(!is.null(json_file$ObservacioFondaria)){
+#     data$Depth[i]=json_file$ObservacioFondaria
+#   }
+# }
 
 unique(data$Nombre)
 a=which(data$Nombre==""|data$Nombre=="NOT VALID")
@@ -2180,8 +2455,6 @@ nombres=unique(Observadores_EAI$Specie)
 
 # Directo si todo va bien
 x.inv <- try(solve(wormsbymatchnames(nombres, marine_only = F)), silent=TRUE)
-temp=wormsbymatchnames(stri_trans_general(nombres,"Latin-ASCII") #elimina el espacio \\s+ por el normal y transforma en ASCII (elimina acentos o letras raras)
-                       ,marine_only = F)
 
 temp1=NULL
 error.nombres=NULL
@@ -2199,6 +2472,9 @@ if (str_detect(x.inv[1],"subscript out of bounds")){
       print(paste(round(i/length(nombres)*100,2),"% -->",paste(i,length(nombres), sep= " de "),sep = " ")) # control de evolucion
     }
   }
+} else {
+  temp=wormsbymatchnames(stri_trans_general(nombres,"Latin-ASCII") #elimina el espacio \\s+ por el normal y transforma en ASCII (elimina acentos o letras raras)
+                         ,marine_only = F)
 }
 
 if (length(error.nombres)!=0) {
@@ -2247,6 +2523,7 @@ write.csv2(Observadores_EAI,
            file = paste("BD_Observadores_",format(as.Date(Sys.Date(),format="%Y-%m-%d"),"%d%m%y"),".csv",sep=""),
            row.names = F,
            fileEncoding = "UTF-8")
+
 } else {
   print("OBSERVADORES DEL MAR FALLA")
   a=invisible(readline(prompt="Pagina web de observadore del mar no funciona. Desea parar el script?  si/no "))
@@ -2316,7 +2593,7 @@ write.csv2(EAI_Diversimar,
           fileEncoding = "UTF-8")
 } else {
   print("DIVERSIMAR FALLA")
-  a=invisible(readline(prompt="Pagina web de DIVERSIMAR FALLA. Desea parar el scripT?  si/no "))
+  a=invisible(readline(prompt="Pagina web de DIVERSIMAR FALLA. Desea parar el script?  si/no "))
   if (str_detect(a,regex("si|yes|s|y",ignore_case = T))) {
     stop("OK, script parado")
   }
@@ -2342,6 +2619,63 @@ c=which(duplicated(BD_COMPLETA[,-which(colnames(BD_COMPLETA)=="Archivo")]))
 if (length(c)!=0) {
   BD_COMPLETA=BD_COMPLETA[-c,]
 } 
+
+
+BD_COMPLETA$Longitud=as.numeric(BD_COMPLETA$Longitud)
+BD_COMPLETA$Latitud=as.numeric(BD_COMPLETA$Latitud)
+
+BD_COMPLETA$Longitud[which(BD_COMPLETA$Longitud>15)]=BD_COMPLETA$Longitud[which(BD_COMPLETA$Longitud>15)]*(-1)
+
+Cabrera_coor=c(39.14390726804751, 2.944507257240857)
+Cabrera=which(str_detect(BD_COMPLETA$Coord_Originales,pattern = "Cabrera")&!str_detect(BD_COMPLETA$Coord_Originales,pattern = "39"))
+
+BD_COMPLETA[Cabrera,c("Latitud","Longitud")][1]=Cabrera_coor[1]
+BD_COMPLETA[Cabrera,c("Latitud","Longitud")][2]=Cabrera_coor[2]
+
+
+a=which(BD_COMPLETA$Latitud>33&BD_COMPLETA$valid_name=="Sparus aurata"|
+          BD_COMPLETA$Latitud>33&BD_COMPLETA$valid_name=="Dicentrarchus labrax"|
+          BD_COMPLETA$Latitud>33&BD_COMPLETA$valid_name=="Argyrosomus regius")
+
+if (length(a)!=0) {
+  BD_COMPLETA=BD_COMPLETA[-a,]
+}
+
+
+# Añado coordenadas a algunas coordenadas en caracteres
+data = list(
+  Puertos=c("Puerto de valencia","puerto de barcelona", "puerto de a coruña", "puerto de vigo", 
+            "puerto de alicante", "puerto de ceuta","Puerto de Cudillero","Puerto de Gijón","Puerto de la Cruz",
+            "Puerto de Málaga","Puerto de Tragobe","Puerto del Carmen", "puerto saladillo"),
+  Lat=c(39.44788543606941, 41.34694436881236, 43.363622725102566, 42.230312267975705,
+        38.33324161692196, 35.8952712858774, 43.56751732068425, 43.560460923703204, 
+        28.46754830689097,36.71047108549424, 42.51842664270793,28.921117659261526, 36.119990945317724),
+  Long=c( -0.31718422021873255, 2.1683640639124127, -8.388872150648087, -8.741366361948165,
+          -0.49310501169754795, -5.317587018053679, -6.14998015770064, -5.692251478611518, 
+          -16.243736203514935, -4.417132764620697, -8.824886373331005, -13.674328971252775, -5.440087289920226)
+)
+
+for (i in 1:length(data$Puertos)) {
+  temp=which(str_detect(BD_COMPLETA$Coord_Originales,fixed(data[["Puertos"]][i], ignore_case=TRUE))&is.na(BD_COMPLETA$Latitud))
+  BD_COMPLETA[temp,"Latitud"]=data[["Lat"]][i]
+  BD_COMPLETA[temp,"Longitud"]=data[["Long"]][i]
+}
+
+# Arreglar demarcaciones por las coordenadas
+NOR=which(BD_COMPLETA$Latitud>41.66471&BD_COMPLETA$Longitud<(-1.57104))
+BD_COMPLETA$Demarcacion[NOR]="NOR"
+
+LEBA=which(BD_COMPLETA$Latitud<42.759&BD_COMPLETA$Longitud>(-2.192616))
+BD_COMPLETA$Demarcacion[LEBA]="LEBA"
+
+ESAL=which(BD_COMPLETA$Latitud<37.5726&BD_COMPLETA$Longitud>(-5.9163)&BD_COMPLETA$Longitud<(-2.192616))
+BD_COMPLETA$Demarcacion[ESAL]="ESAL"
+
+SUD=which(BD_COMPLETA$Latitud<37.286&BD_COMPLETA$Longitud<(-5.9163)&BD_COMPLETA$Longitud>(-7.543))
+BD_COMPLETA$Demarcacion[SUD]="SUD"
+
+CAN=which(BD_COMPLETA$Latitud<32.38)
+BD_COMPLETA$Demarcacion[CAN]="CAN"
 
 # Guardar base de datos completa ####
 write.csv2(BD_COMPLETA,
@@ -2490,46 +2824,6 @@ if (length(temp)==length(unique(temp))) {
 }
 
 Base_datos_SOLO_EAI=BD_COMPLETA[temp,]
-
-Base_datos_SOLO_EAI$Longitud=as.numeric(Base_datos_SOLO_EAI$Longitud)
-Base_datos_SOLO_EAI$Latitud=as.numeric(Base_datos_SOLO_EAI$Latitud)
-
-Base_datos_SOLO_EAI$Longitud[which(Base_datos_SOLO_EAI$Longitud>15)]=Base_datos_SOLO_EAI$Longitud[which(Base_datos_SOLO_EAI$Longitud>15)]*(-1)
-
-Cabrera_coor=c(39.14390726804751, 2.944507257240857)
-Cabrera=which(str_detect(Base_datos_SOLO_EAI$Coord_Originales,pattern = "Cabrera")&!str_detect(Base_datos_SOLO_EAI$Coord_Originales,pattern = "39"))
-
-Base_datos_SOLO_EAI[Cabrera,c("Latitud","Longitud")][1]=Cabrera_coor[1]
-Base_datos_SOLO_EAI[Cabrera,c("Latitud","Longitud")][2]=Cabrera_coor[2]
-
-
-a=which(Base_datos_SOLO_EAI$Latitud>33&Base_datos_SOLO_EAI$valid_name=="Sparus aurata"|
-          Base_datos_SOLO_EAI$Latitud>33&Base_datos_SOLO_EAI$valid_name=="Dicentrarchus labrax"|
-          Base_datos_SOLO_EAI$Latitud>33&Base_datos_SOLO_EAI$valid_name=="Argyrosomus regius")
-
-if (length(a)!=0) {
-  Base_datos_SOLO_EAI=Base_datos_SOLO_EAI[-a,]
-}
-
-
-# Añado coordenadas a algunas coordenadas en caracteres
-data = list(
-  Puertos=c("Puerto de valencia","puerto de barcelona", "puerto de a coruña", "puerto de vigo", 
-  "puerto de alicante", "puerto de ceuta","Puerto de Cudillero","Puerto de Gijón","Puerto de la Cruz",
-  "Puerto de Málaga","Puerto de Tragobe","Puerto del Carmen", "puerto saladillo"),
-  Lat=c(39.44788543606941, 41.34694436881236, 43.363622725102566, 42.230312267975705,
-        38.33324161692196, 35.8952712858774, 43.56751732068425, 43.560460923703204, 
-        28.46754830689097,36.71047108549424, 42.51842664270793,28.921117659261526, 36.119990945317724),
-  Long=c( -0.31718422021873255, 2.1683640639124127, -8.388872150648087, -8.741366361948165,
-         -0.49310501169754795, -5.317587018053679, -6.14998015770064, -5.692251478611518, 
-         -16.243736203514935, -4.417132764620697, -8.824886373331005, -13.674328971252775, -5.440087289920226)
-)
-
-for (i in 1:length(data$Puertos)) {
-  temp=which(str_detect(Base_datos_SOLO_EAI$Coord_Originales,fixed(data[["Puertos"]][i], ignore_case=TRUE))&is.na(Base_datos_SOLO_EAI$Latitud))
-  Base_datos_SOLO_EAI[temp,"Latitud"]=data[["Lat"]][i]
-  Base_datos_SOLO_EAI[temp,"Longitud"]=data[["Long"]][i]
-}
 
 # Conocer si hay filas duplicadas y eliminarlas
 a=which(duplicated(Base_datos_SOLO_EAI[,-which(colnames(Base_datos_SOLO_EAI)=="Archivo")]))
