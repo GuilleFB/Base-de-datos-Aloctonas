@@ -1,7 +1,17 @@
 # Creación de la base de datos de Aloctonas
 
-# Conecta a Google Drive donde estan los archivos
-library(googledrive)
+# Instalacion y carga de paquetes de R en bucle
+paquetes=c("parallel","readxl","RColorBrewer","readr","tidyr",
+           "dplyr","rgdal","raster","knitr","sp","sf","readxl","gdistance",
+           "rgeos","ggplot2","ggimage","maptools","sf","smoothr","worms",
+           "stringi","lubridate","mapview","stringr","beepr","tidygeocoder",
+           "rvest","magrittr","jsonlite","rgbif","writexl","googledrive"
+           )
+
+for (i in 1:length(paquetes)) {
+  if (!require(paquetes[i], character.only = TRUE)) install.packages(paquetes[i], character.only = TRUE) 
+  library(paquetes[i], character.only = TRUE)
+}
 
 drive_auth()
 1 # si tienes registrado en el ordenador tu email
@@ -9,38 +19,6 @@ drive_auth()
 
 rm(list=ls(all=TRUE)) # Borrar todo los objetos
 invisible(capture.output(gc())) # Limpiar la memoria
-
-library(parallel)
-library(readxl)
-library(RColorBrewer)
-library(readr)
-library(tidyr)
-library(dplyr)
-library(rgdal)
-library(raster)
-library(knitr)
-library(sp)
-library(sf)
-library(readxl)
-library(gdistance)
-library(rgeos)
-library(ggplot2)
-library(ggimage)
-library(maptools)
-library(sf)
-library(smoothr)
-library(worms)
-library(stringi)
-library(lubridate)
-library(mapview)
-library(stringr)
-library(beepr)
-library(tidygeocoder)
-library(rvest)
-library(magrittr)
-library(jsonlite)
-library(rgbif)
-library(writexl)
 
 # Seleccion de directorio Raiz ####
 path="D:\\2021 - ALOCTONAS\\Base de datos a modificar\\Archivos" # Elegir la carpeta que quiero para trabajar
@@ -1235,15 +1213,6 @@ tempBD=rbind(tempBD1,tempBD2,tempBD3,tempBD4,tempBD5,
 # Eliminar la extension .xlsx de los nombres de las especies
 # tempBD$Specie=gsub(".xlsx", "", tempBD$Specie)
 
-# Añadir las demarcaciones en la tabla
-# plot(tempBD$Longitud,tempBD$Latitud) #plot para visualizarlas
-
-tempBD$Demarcacion[which(tempBD$Longitud>0)]="LEBA"
-
-tempBD$Demarcacion[which(tempBD$Longitud<0 & tempBD$Latitud>41)]="NOR"
-  
-tempBD$Demarcacion[which(tempBD$Latitud<38)]="ESAL"
-
 tempBD=data.frame(tempBD)
 tempBD$Specie=trimws(tempBD$Specie, "both", whitespace = "[ \\h\\v]")
 
@@ -1878,25 +1847,22 @@ Filas=which(BD_Primeros$Archivo%in%Archivos_primeros_registros) # Las filas que 
 
 # Selecciona todas las especies de primeros registros
 #BD_EAI_primeros=sort(unique(BD_Primeros[Filas,"valid_name"])) # usar el nombre valido de la especie por WORMS
-BD_EAI_primeros=sort(unique(BD_Primeros[Filas,"scientificname"])) 
+BD_EAI_primeros=data.frame(sort(unique(BD_Primeros[Filas,"scientificname"])))
 
-Columnas=c("acceptedScientificName","scientificName","decimalLatitude","decimalLongitude","locality","stateProvince","collectionCode", # Columnas que quiero que tenga la tabla que voy a crear. Los nombres son de la base de datos del GBIF
-           "eventDate","kingdom","phylum","class","order","family","genus","identifiedBy","institutionCode","depth","occurrenceRemarks")
 # Nombre columnas
 # acceptedScientificName, el nombre cientifico aceptado
 # scientificName, nombre cientifico en la base de datos del GBIF
 
-# Extraccion de datos de GBIF 
-Todo=NULL
-
-for (i in 1:length(BD_EAI_primeros)) {
-  prueba=occ_search(scientificName=BD_EAI_primeros[i], country="ES", limit = 100000) #Utilizando el paquete del gbif me busca las especies que solo estan presentes en "ES" Espa?a
+# Extraccion de datos de GBIF
+GBIF_function <- function (x) {
+  library(rgbif)
+  Columnas=c("acceptedScientificName","scientificName","decimalLatitude","decimalLongitude","locality","stateProvince","collectionCode", # Columnas que quiero que tenga la tabla que voy a crear. Los nombres son de la base de datos del GBIF
+             "eventDate","kingdom","phylum","class","order","family","genus","identifiedBy","institutionCode","depth","occurrenceRemarks")
+  prueba=occ_search(scientificName=x, country="ES", limit = 100000) #Utilizando el paquete del gbif me busca las especies que solo estan presentes en "ES" Espa?a
   #Usar limite de 100000 para que me recoja todos los datos. Por defecto son solo 500.
   prueba=data.frame(prueba$data)
-  
-  if (dim(prueba)[1]==0) {
-    next  
-  } else {
+
+  if (dim(prueba)[1]!=0) {
     temp=matrix(NA,nrow = length(prueba$key),ncol = length(Columnas)) # me crea una tabla vacia para completar con los datos que obtengo de cada especie
     temp=as.data.frame(temp)
     colnames(temp)=Columnas
@@ -1906,14 +1872,54 @@ for (i in 1:length(BD_EAI_primeros)) {
       }
       temp[,j]=prueba[,which(colnames(prueba)==Columnas[j])]
     }
-    
-    temp$scientificname_BD=BD_EAI_primeros[i]
-    Todo=rbind(Todo, temp)
-    
-    print(paste(round(i/length(BD_EAI_primeros)*100,2),"%", sep = " ")) # Medidor de progreso
+    temp$scientificname_BD=x
+    return(temp)
   }
-  
 }
+
+########### Paralelizando ###########
+ncl <- detectCores()
+
+cl <- makeCluster(ncl-1)
+
+clusterExport(cl,"GBIF_function")
+
+resultados=parApply(cl=cl, BD_EAI_primeros, 1, GBIF_function) # Paralelizacion
+
+stopCluster(cl=cl)
+
+Todo <- plyr::ldply(resultados, data.frame) # convierte lista en data.frame
+
+# # Antiguo, mucho tiempo, mejor usar la paralelizacion
+#
+# # Extraccion de datos de GBIF 
+# Todo=NULL
+# 
+# for (i in 1:length(BD_EAI_primeros)) {
+#   prueba=occ_search(scientificName=BD_EAI_primeros[i], country="ES", limit = 100000) #Utilizando el paquete del gbif me busca las especies que solo estan presentes en "ES" Espa?a
+#   #Usar limite de 100000 para que me recoja todos los datos. Por defecto son solo 500.
+#   prueba=data.frame(prueba$data)
+#   
+#   if (dim(prueba)[1]==0) {
+#     next  
+#   } else {
+#     temp=matrix(NA,nrow = length(prueba$key),ncol = length(Columnas)) # me crea una tabla vacia para completar con los datos que obtengo de cada especie
+#     temp=as.data.frame(temp)
+#     colnames(temp)=Columnas
+#     for (j in 1:length(Columnas)) {
+#       if (length(which(colnames(prueba)==Columnas[j]))==0) {
+#         next
+#       }
+#       temp[,j]=prueba[,which(colnames(prueba)==Columnas[j])]
+#     }
+#     
+#     temp$scientificname_BD=BD_EAI_primeros[i]
+#     Todo=rbind(Todo, temp)
+#     
+#     print(paste(round(i/length(BD_EAI_primeros)*100,2),"%", sep = " ")) # Medidor de progreso
+#   }
+#   
+# }
 
 # Busca los nombres que son BOLD y los modifica para poner la especie real
 temp=which(str_detect(Todo$scientificName, "BOLD")|str_detect(Todo$acceptedScientificName, "BOLD"))
@@ -1982,23 +1988,6 @@ if (length(temp)!=0) {
 # mapshot(mapview(Todo[which(!is.na(Todo$decimalLatitude)),], xcol = "decimalLongitude", ycol = "decimalLatitude", map.types = "CartoDB.Positron",crs = 4326, grid = F) # mapa con todos los datos de todas las especies
 # , url = "Mapa_Especies_GBIF_13012022.html")
 
-#Añadir las demarcaciones a la base de datos del GBIF
-Todo$Demarcacion=NA
-NOR=which(Todo$decimalLatitude>41.66471&Todo$decimalLongitude<(-1.57104))
-Todo$Demarcacion[NOR]="NOR"
-
-LEBA=which(Todo$decimalLatitude<42.759&Todo$decimalLongitude>(-2.192616))
-Todo$Demarcacion[LEBA]="LEBA"
-
-ESAL=which(Todo$decimalLatitude<37.5726&Todo$decimalLongitude>(-5.9163)&Todo$decimalLongitude<(-2.192616))
-Todo$Demarcacion[ESAL]="ESAL"
-
-SUD=which(Todo$decimalLatitude<37.286&Todo$decimalLongitude<(-5.9163)&Todo$decimalLongitude>(-7.543))
-Todo$Demarcacion[SUD]="SUD"
-
-CAN=which(Todo$decimalLatitude<32.38)
-Todo$Demarcacion[CAN]="CAN"
-
 # View(Todo[which(is.na(Todo$Demarcacion)),])
 
 # Añadir a la BD_EAI la base de datos de GBIF ####
@@ -2015,7 +2004,7 @@ Todo_EAI$scientificname=Todo$scientificname_BD
 Todo_EAI$Archivo="Base de datos GBIF"
 Todo_EAI$Coord_Originales=paste(Todo$decimalLatitude, Todo$decimalLongitude, Todo$locality, Todo$stateProvince, sep = "_")
 Todo_EAI$Other_relevant_reference=paste(Todo$collectionCode, Todo$identifiedBy, Todo$institutionCode, Todo$occurrenceRemarks, sep = "_")
-Todo_EAI$Demarcacion=Todo$Demarcacion
+Todo_EAI$Demarcacion=NA
 Todo_EAI$kingdom=Todo$kingdom
 Todo_EAI$phylum=Todo$phylum
 Todo_EAI$class=Todo$class
@@ -2101,8 +2090,7 @@ Funcion_RedPromar = function(x){
   if (length(fecha)==0) {
     fecha = NA
   }
-  nombre_fecha=c(nombre,fecha)
-  return(nombre_fecha)
+  return(c(nombre,fecha))
 }
 
 Webs=data.frame(Webs=paste("https://redpromar.org/sightings/",df$Avistamiento,sep=""))
@@ -2122,7 +2110,7 @@ stopCluster(cl=cl)
 df$Especie=resultados[1,]
 df$Fecha=resultados[2,]
 
-temp=which(BD_Primeros$Demarcacion=="CAN" & BD_Primeros$Archivo=="BD_primeros registros_CAN.xlsx")
+temp=which(BD_Primeros$Archivo=="BD_primeros registros_CAN.xlsx")
 
 nombres=unique(c(BD_Primeros$Specie[temp],
                  BD_Primeros$scientificname[temp],
@@ -2265,9 +2253,8 @@ if (length(prueba)==0){
     }
   }
   
-  prueba <- data.frame(matrix(unlist(resultados), nrow=length(resultados), byrow=TRUE))
-  
-  colnames(prueba)=colnames(resultados[[1]])
+  prueba <- plyr::ldply(resultados, data.frame)
+
 }
 
 columnas=which(colnames(redpromar)%in%colnames(prueba))
@@ -2495,28 +2482,6 @@ for (i in 1:length(temp[,1])) {
   Observadores_EAI[temp1,columnas]=temp[i,-1]
 }
 
-# Añadir las demarcaciones a la base de datos del Observadores del mar
-NOR=which(Observadores_EAI$Latitud>41.66471&Observadores_EAI$Longitud<(-1.57104))
-if (length(NOR)!=0) {
-Observadores_EAI$Demarcacion[NOR]="NOR"
-}
-LEBA=which(Observadores_EAI$Latitud<42.759&Observadores_EAI$Longitud>(-2.192616))
-if (length(LEBA)!=0) {
-Observadores_EAI$Demarcacion[LEBA]="LEBA"
-}
-ESAL=which(Observadores_EAI$Latitud<37.5726&Observadores_EAI$Longitud>(-5.9163)&Observadores_EAI$Longitud<(-2.192616))
-if (length(ESAL)!=0) {
-Observadores_EAI$Demarcacion[ESAL]="ESAL"
-}
-SUD=which(Observadores_EAI$Latitud<37.286&Observadores_EAI$Longitud<(-5.9163)&Observadores_EAI$Longitud>(-7.543))
-if (length(SUD)!=0) {
-Observadores_EAI$Demarcacion[SUD]="SUD"
-}
-CAN=which(Observadores_EAI$Latitud<32.38)
-if (length(CAN)!=0) {
-  Observadores_EAI$Demarcacion[CAN]="CAN"
-}
-
 BD_Primeros=rbind(BD_Primeros,Observadores_EAI)
 
 write.csv2(Observadores_EAI,
@@ -2626,23 +2591,14 @@ BD_COMPLETA$Latitud=as.numeric(BD_COMPLETA$Latitud)
 
 BD_COMPLETA$Longitud[which(BD_COMPLETA$Longitud>15)]=BD_COMPLETA$Longitud[which(BD_COMPLETA$Longitud>15)]*(-1)
 
+# Añado coordenadas a algunas coordenadas en caracteres
+
 Cabrera_coor=c(39.14390726804751, 2.944507257240857)
 Cabrera=which(str_detect(BD_COMPLETA$Coord_Originales,pattern = "Cabrera")&!str_detect(BD_COMPLETA$Coord_Originales,pattern = "39"))
 
 BD_COMPLETA[Cabrera,c("Latitud","Longitud")][1]=Cabrera_coor[1]
 BD_COMPLETA[Cabrera,c("Latitud","Longitud")][2]=Cabrera_coor[2]
 
-
-a=which(BD_COMPLETA$Latitud>33&BD_COMPLETA$valid_name=="Sparus aurata"|
-          BD_COMPLETA$Latitud>33&BD_COMPLETA$valid_name=="Dicentrarchus labrax"|
-          BD_COMPLETA$Latitud>33&BD_COMPLETA$valid_name=="Argyrosomus regius")
-
-if (length(a)!=0) {
-  BD_COMPLETA=BD_COMPLETA[-a,]
-}
-
-
-# Añado coordenadas a algunas coordenadas en caracteres
 data = list(
   Puertos=c("Puerto de valencia","puerto de barcelona", "puerto de a coruña", "puerto de vigo", 
             "puerto de alicante", "puerto de ceuta","Puerto de Cudillero","Puerto de Gijón","Puerto de la Cruz",
@@ -2661,21 +2617,47 @@ for (i in 1:length(data$Puertos)) {
   BD_COMPLETA[temp,"Longitud"]=data[["Long"]][i]
 }
 
-# Arreglar demarcaciones por las coordenadas
-NOR=which(BD_COMPLETA$Latitud>41.66471&BD_COMPLETA$Longitud<(-1.57104))
+# Arreglar demarcaciones por las coordenadas excluyendo los archivos de primeros registros.
+NOR=which(BD_COMPLETA$Latitud>41.66471
+          &BD_COMPLETA$Longitud<(-1.57104)
+          &!str_detect(BD_COMPLETA$Archivo,"BD_primeros registros_")
+)
+
 BD_COMPLETA$Demarcacion[NOR]="NOR"
 
-LEBA=which(BD_COMPLETA$Latitud<42.759&BD_COMPLETA$Longitud>(-2.192616))
+LEBA=which(BD_COMPLETA$Latitud<42.759
+           &BD_COMPLETA$Longitud>(-2.192616)
+           &!str_detect(BD_COMPLETA$Archivo,"BD_primeros registros_")
+)
+
 BD_COMPLETA$Demarcacion[LEBA]="LEBA"
 
-ESAL=which(BD_COMPLETA$Latitud<37.5726&BD_COMPLETA$Longitud>(-5.9163)&BD_COMPLETA$Longitud<(-2.192616))
+ESAL=which(BD_COMPLETA$Latitud<37.5726
+           &BD_COMPLETA$Longitud>(-5.9163)&BD_COMPLETA$Longitud<(-2.192616)
+           &!str_detect(BD_COMPLETA$Archivo,"BD_primeros registros_")
+)
 BD_COMPLETA$Demarcacion[ESAL]="ESAL"
 
-SUD=which(BD_COMPLETA$Latitud<37.286&BD_COMPLETA$Longitud<(-5.9163)&BD_COMPLETA$Longitud>(-7.543))
+SUD=which(BD_COMPLETA$Latitud<37.286&BD_COMPLETA$Longitud<(-5.9163)
+          &BD_COMPLETA$Longitud>(-7.543)
+          &!str_detect(BD_COMPLETA$Archivo,"BD_primeros registros_")
+)
 BD_COMPLETA$Demarcacion[SUD]="SUD"
 
-CAN=which(BD_COMPLETA$Latitud<32.38)
+CAN=which(BD_COMPLETA$Latitud<32.38
+          &!str_detect(BD_COMPLETA$Archivo,"BD_primeros registros_")
+)
 BD_COMPLETA$Demarcacion[CAN]="CAN"
+
+# Eliminacion de especies por coordenadas ####
+a=which(BD_COMPLETA$Latitud>33&BD_COMPLETA$valid_name=="Sparus aurata"|
+          BD_COMPLETA$Latitud>33&BD_COMPLETA$valid_name=="Dicentrarchus labrax"|
+          BD_COMPLETA$Latitud>33&BD_COMPLETA$valid_name=="Argyrosomus regius"|
+          BD_COMPLETA$Demarcacion=="CAN"&BD_COMPLETA$valid_name=="Percnon gibbesi")
+
+if (length(a)!=0) {
+  BD_COMPLETA=BD_COMPLETA[-a,]
+}
 
 # Guardar base de datos completa ####
 write.csv2(BD_COMPLETA,
@@ -2684,7 +2666,7 @@ write.csv2(BD_COMPLETA,
            fileEncoding = "UTF-8")
 
 
-# Estatus especies ####
+# ESTATUS Especies ####
 Estatus=NULL
 
 Nombres_columnas=c("Specie", "EASIN_check", "EASIN_Remarks",
